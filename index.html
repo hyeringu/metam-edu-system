@@ -77,7 +77,7 @@
           <!-- 비밀번호 입력 섹션 -->
           <div id="mm-audit-pw-sec" style="margin-bottom:14px;">
             <div style="display:flex; gap:8px;">
-              <input id="mm-audit-pw" type="password" placeholder="관리자 비밀번호 (7256!)" style="
+              <input id="mm-audit-pw" type="password" placeholder="관리자 비밀번호" style="
                 flex:1; padding:9px 12px; background:#0f172a; border:1px solid #334155;
                 border-radius:8px; color:#f1f5f9; font-size:14px; outline:none;">
               <button onclick="mmCheckAuditPw()" style="padding:9px 16px; background:#3b82f6;
@@ -248,6 +248,111 @@
         mmRenderLogs();
       }
     }
+    </script>
+
+    <!-- 커스텀 UI 수정 스크립트 -->
+    <script>
+    (function() {
+      // React 앱이 렌더링될 때까지 대기
+      function waitForReact() {
+        const observer = new MutationObserver(() => {
+          applyCustomizations();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        // 초기 실행
+        setTimeout(applyCustomizations, 500);
+        setTimeout(applyCustomizations, 1000);
+        setTimeout(applyCustomizations, 2000);
+      }
+
+      function applyCustomizations() {
+        // 1. 필터 버튼 수정: "정규" → "신입", "기존"으로 분리
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent.trim() === '정규') {
+            // "정규" 버튼을 "신입"으로 변경
+            const parent = btn.parentElement;
+            if (parent && !parent.querySelector('[data-custom-added]')) {
+              // 신입 버튼 생성
+              const newBtn = btn.cloneNode(true);
+              newBtn.textContent = '신입';
+              newBtn.setAttribute('data-custom-added', 'trainee');
+              newBtn.onclick = () => {
+                // 모든 필터 버튼 비활성화
+                parent.querySelectorAll('button').forEach(b => {
+                  b.className = b.className.replace('bg-blue-600 text-white shadow-md', 'bg-white text-slate-600 hover:bg-slate-50 border border-stone-200');
+                });
+                // 현재 버튼 활성화
+                newBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white shadow-md';
+              };
+              
+              // 기존 버튼 생성
+              const existingBtn = btn.cloneNode(true);
+              existingBtn.textContent = '기존';
+              existingBtn.setAttribute('data-custom-added', 'trainee');
+              existingBtn.onclick = () => {
+                parent.querySelectorAll('button').forEach(b => {
+                  b.className = b.className.replace('bg-blue-600 text-white shadow-md', 'bg-white text-slate-600 hover:bg-slate-50 border border-stone-200');
+                });
+                existingBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white shadow-md';
+              };
+              
+              // 전체 버튼 다음에 신입, 기존 추가
+              const allBtn = Array.from(parent.children).find(b => b.textContent.trim() === '전체');
+              if (allBtn) {
+                allBtn.after(newBtn);
+                newBtn.after(existingBtn);
+              }
+              
+              // 원래 "정규" 버튼 제거
+              btn.remove();
+            }
+          }
+        });
+
+        // 2. 테이블에 만족도 컬럼 추가
+        const tables = document.querySelectorAll('table');
+        tables.forEach(table => {
+          // 헤더에 "만족도" 추가
+          const headerRow = table.querySelector('thead tr');
+          if (headerRow && !headerRow.querySelector('[data-satisfaction-header]')) {
+            const headers = headerRow.querySelectorAll('th');
+            const timeHeader = Array.from(headers).find(th => th.textContent.includes('시간'));
+            if (timeHeader) {
+              const satisfactionHeader = document.createElement('th');
+              satisfactionHeader.className = 'px-4 py-2 text-left text-xs font-semibold text-slate-600 uppercase';
+              satisfactionHeader.textContent = '만족도';
+              satisfactionHeader.setAttribute('data-satisfaction-header', 'true');
+              timeHeader.after(satisfactionHeader);
+            }
+          }
+
+          // 각 행에 만족도 데이터 추가 (실제 데이터는 React에서 관리하므로 빈 셀만 추가)
+          const rows = table.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            if (!row.querySelector('[data-satisfaction-cell]')) {
+              const cells = row.querySelectorAll('td');
+              const timeCell = Array.from(cells).find(td => td.textContent.match(/\d+H/));
+              if (timeCell) {
+                const satisfactionCell = document.createElement('td');
+                satisfactionCell.className = 'px-4 py-2 text-sm text-slate-700';
+                satisfactionCell.setAttribute('data-satisfaction-cell', 'true');
+                satisfactionCell.textContent = '-'; // 기본값
+                timeCell.after(satisfactionCell);
+              }
+            }
+          });
+        });
+      }
+
+      // React 로드 대기
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitForReact);
+      } else {
+        waitForReact();
+      }
+    })();
     </script>
   </body>
 </html>
