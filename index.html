@@ -372,8 +372,19 @@
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
           if (['전체','신입','기존','특강','관리자'].indexOf(t) > -1) {
-            btn.style.outline = (t === label) ? '2px solid #0ea5e9' : '';
-            btn.style.outlineOffset = (t === label) ? '2px' : '';
+            if (t === label) {
+              // 활성 - 파란색
+              btn.style.background = '#2563eb';
+              btn.style.color = 'white';
+              btn.style.borderColor = '#2563eb';
+              btn.style.outline = '';
+            } else {
+              // 비활성 - 흰색 원래대로
+              btn.style.background = '';
+              btn.style.color = '';
+              btn.style.borderColor = '';
+              btn.style.outline = '';
+            }
           }
         });
       }
@@ -386,21 +397,17 @@
         var parent = recordHeader.parentElement;
         if (!parent || parent.querySelector('[data-backup-btn]')) return;
 
-        parent.style.display = 'flex';
-        parent.style.alignItems = 'center';
-        parent.style.justifyContent = 'space-between';
-
         var btn = document.createElement('button');
         btn.textContent = '📥 전체 백업 다운로드';
         btn.setAttribute('data-backup-btn', 'true');
-        btn.style.cssText = 'padding:8px 16px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;';
+        btn.style.cssText = 'padding:5px 10px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;margin-top:8px;display:block;';
         btn.onmouseover = function() { btn.style.background = '#047857'; };
         btn.onmouseout = function() { btn.style.background = '#059669'; };
         btn.onclick = function(e) {
           e.stopPropagation();
           downloadExcel();
         };
-        parent.appendChild(btn);
+        recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
       // ⑥ 엑셀 다운로드 (3개 시트: 교육기록 / 강사별월별현황 / 센터별현황)
@@ -429,55 +436,115 @@
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
 
         // 강사별 월별 집계
-        // instrMonthMap[강사][월] = {교육횟수, 총시간, 총인원}
         var instrMonthMap = {};
         var allMonths = {};
         data.forEach(function(row) {
           var instr = row[3] || '미배정';
-          // 날짜에서 월 추출 (row[0] = 날짜 예: 2026-05-27, row[1] = 월 예: 2026-05)
-          var month = row[1] || (row[0] ? row[0].substring(0,7) : '미상');
+          var rawMonth = row[1] || (row[0] ? row[0].substring(0,7) : '미상');
+          // 월 표시: 2026-05 → 5월
+          var monthLabel = rawMonth;
+          var mMatch = String(rawMonth).match(/\d{4}-(\d{2})/);
+          if (mMatch) monthLabel = parseInt(mMatch[1]) + '월';
           if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
-          if (!instrMonthMap[instr][month]) instrMonthMap[instr][month] = {교육횟수:0, 총시간:0, 총인원:0};
-          instrMonthMap[instr][month].교육횟수++;
-          instrMonthMap[instr][month].총시간 += parseFloat(row[8]) || 0;
-          instrMonthMap[instr][month].총인원 += parseInt(row[7]) || 0;
-          allMonths[month] = true;
+          if (!instrMonthMap[instr][rawMonth]) instrMonthMap[instr][rawMonth] = {label: monthLabel, 교육횟수:0, 총시간:0, 총인원:0};
+          instrMonthMap[instr][rawMonth].교육횟수++;
+          instrMonthMap[instr][rawMonth].총시간 += parseFloat(row[8]) || 0;
+          instrMonthMap[instr][rawMonth].총인원 += parseInt(row[7]) || 0;
+          allMonths[rawMonth] = monthLabel;
         });
 
         // 월 목록 정렬
-        var months = Object.keys(allMonths).sort();
+        var sortedMonthKeys = Object.keys(allMonths).sort();
 
-        // 강사별현황 시트 데이터 생성
-        // 헤더: 강사 | 월 | 교육횟수 | 총시간(H) | 총인원(명)
-        var instrHeaders = ['강사', '월', '교육횟수', '총시간(H)', '총인원(명)'];
-        var instrData = [];
-
-        // 강사 순서: 지정 순서 먼저, 나머지는 뒤에
+        // 강사 순서: 지정 순서 먼저, 나머지 뒤에
         var allInstrs = Object.keys(instrMonthMap);
         var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
         allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
 
+        // 강사별현황 가로 레이아웃
+        // 1행: 빈칸 | 김보경 | | | | 김현정 | | | | 나혜리 | | | | 구혜린
+        // 2행: 월   | 교육횟수 | 총시간 | 총인원 | (반복)
+        // 3행~: 월별 데이터
+        // 마지막행: 합계
+
+        var instrHeaders = ['월'];
         sortedInstrs.forEach(function(instr) {
-          var firstRow = true;
-          months.forEach(function(month) {
-            var d = instrMonthMap[instr][month];
-            if (d) {
-              instrData.push([firstRow ? instr : '', month, d.교육횟수, d.총시간, d.총인원]);
-              firstRow = false;
-            }
-          });
-          // 강사 소계 행
-          var total = {교육횟수:0, 총시간:0, 총인원:0};
-          months.forEach(function(month) {
-            if (instrMonthMap[instr][month]) {
-              total.교육횟수 += instrMonthMap[instr][month].교육횟수;
-              total.총시간 += instrMonthMap[instr][month].총시간;
-              total.총인원 += instrMonthMap[instr][month].총인원;
-            }
-          });
-          instrData.push(['[' + instr + ' 합계]', '전체', total.교육횟수, total.총시간, total.총인원]);
-          instrData.push(['', '', '', '', '']); // 구분 빈 행
+          instrHeaders.push(instr); // 강사 이름
+          instrHeaders.push('교육횟수');
+          instrHeaders.push('총시간(H)');
+          instrHeaders.push('총인원(명)');
         });
+
+        // 서브헤더 행 (월 | 교육횟수 총시간 총인원 반복)
+        var subHeader = [''];
+        sortedInstrs.forEach(function() {
+          subHeader.push('교육횟수');
+          subHeader.push('총시간(H)');
+          subHeader.push('총인원(명)');
+          subHeader.push(''); // 구분용 빈칸
+        });
+
+        var instrData = [];
+
+        // 강사 이름 행
+        var nameRow = [''];
+        sortedInstrs.forEach(function(instr) {
+          nameRow.push(instr);
+          nameRow.push('');
+          nameRow.push('');
+          nameRow.push('');
+        });
+        instrData.push(nameRow);
+
+        // 항목 헤더 행
+        var itemRow = ['월'];
+        sortedInstrs.forEach(function() {
+          itemRow.push('교육횟수');
+          itemRow.push('총시간(H)');
+          itemRow.push('총인원(명)');
+          itemRow.push('');
+        });
+        instrData.push(itemRow);
+
+        // 월별 데이터 행
+        sortedMonthKeys.forEach(function(mk) {
+          var row = [allMonths[mk]]; // 월 표시 (예: 5월)
+          sortedInstrs.forEach(function(instr) {
+            var d = instrMonthMap[instr] && instrMonthMap[instr][mk];
+            if (d) {
+              row.push(d.교육횟수);
+              row.push(d.총시간);
+              row.push(d.총인원);
+            } else {
+              row.push('-');
+              row.push('-');
+              row.push('-');
+            }
+            row.push('');
+          });
+          instrData.push(row);
+        });
+
+        // 합계 행
+        var totalRow = ['합계'];
+        sortedInstrs.forEach(function(instr) {
+          var total = {교육횟수:0, 총시간:0, 총인원:0};
+          sortedMonthKeys.forEach(function(mk) {
+            if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
+              total.교육횟수 += instrMonthMap[instr][mk].교육횟수;
+              total.총시간 += instrMonthMap[instr][mk].총시간;
+              total.총인원 += instrMonthMap[instr][mk].총인원;
+            }
+          });
+          totalRow.push(total.교육횟수);
+          totalRow.push(total.총시간);
+          totalRow.push(total.총인원);
+          totalRow.push('');
+        });
+        instrData.push(totalRow);
+
+        // makeSheet 호출용 헤더는 첫 행(강사명행)으로 대체하므로 빈 배열 사용
+        var instrHeaders2 = [];
 
         // 센터별 집계
         var centerMap = {};
@@ -525,7 +592,7 @@
           + '<Style ss:ID="subtotal"><Font ss:Bold="1"/><Interior ss:Color="#FEF9C3" ss:Pattern="Solid"/></Style>'
           + '</Styles>'
           + makeSheet('교육기록', headers, data)
-          + makeSheet('강사별현황', instrHeaders, instrData)
+          + makeSheet('강사별현황', instrData[0], instrData.slice(1))
           + makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
           + '</Workbook>';
 
