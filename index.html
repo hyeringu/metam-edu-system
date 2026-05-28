@@ -477,10 +477,7 @@
         var a = document.createElement('a');
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
-        alert('✅ 백업 완료!
-파일명: ' + filename + '
-총 ' + data.length + '건 / 3개 시트 저장됨
-(교육기록 / 강사별현황 / 센터별현황)');
+        alert('✅ 백업 완료! 파일명: ' + filename + ' / 총 ' + data.length + '건 저장 (교육기록·강사별현황·센터별현황)');
       }
 
       if (document.readyState === 'loading') {
