@@ -255,10 +255,11 @@
     }
     </script>
 
-    <!-- 커스텀 UI 수정 스크립트 (정규제거 + 신입/기존 + 엑셀백업) -->
+    <!-- 커스텀 UI 수정 스크립트 -->
     <script>
     (function() {
-      var currentFilter = '전체';
+      // 현재 필터 상태 (초기값: 없음 - 아무것도 파란색 아님)
+      var currentFilter = null;
 
       function waitForReact() {
         var debounce = null;
@@ -274,27 +275,25 @@
 
       function applyCustomizations() {
         removeRegularBtn();
-        addNewbieBtn();
+        addFilterBtns();
         attachListeners();
         addBackupBtn();
-        if (currentFilter !== '전체') {
+        if (currentFilter) {
           filterRows(currentFilter);
+          updateActive(currentFilter);
         }
-        updateActive(currentFilter);
       }
 
       // ① 정규 버튼 제거
       function removeRegularBtn() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
-          if (t === '정규' || t === '정규과정') {
-            btn.remove();
-          }
+          if (t === '정규' || t === '정규과정') btn.remove();
         });
       }
 
       // ② 신입/기존 버튼 추가
-      function addNewbieBtn() {
+      function addFilterBtns() {
         var buttons = Array.from(document.querySelectorAll('button'));
         var allBtn = buttons.find(function(b) { return b.textContent.trim() === '전체'; });
         if (!allBtn) return;
@@ -303,26 +302,22 @@
         var parentBtns = Array.from(parent.querySelectorAll('button'));
         var hasNewbie = parentBtns.some(function(b) { return b.textContent.trim() === '신입'; });
         var hasExisting = parentBtns.some(function(b) { return b.textContent.trim() === '기존'; });
-
-        // 신입 버튼 추가 (전체 바로 다음)
         if (!hasNewbie) {
-          var newbieBtn = document.createElement('button');
-          newbieBtn.textContent = '신입';
-          newbieBtn.className = allBtn.className;
-          newbieBtn.setAttribute('data-custom', 'newbie');
-          allBtn.after(newbieBtn);
+          var nb = document.createElement('button');
+          nb.textContent = '신입';
+          nb.className = allBtn.className;
+          nb.setAttribute('data-custom', 'newbie');
+          allBtn.after(nb);
         }
-
-        // 기존 버튼 추가 (신입 다음)
         if (!hasExisting) {
-          var newbieEl = parent.querySelector('[data-custom="newbie"]') ||
+          var nb2 = parent.querySelector('[data-custom="newbie"]') ||
             Array.from(parent.querySelectorAll('button')).find(function(b) { return b.textContent.trim() === '신입'; });
-          if (newbieEl) {
-            var existingBtn = document.createElement('button');
-            existingBtn.textContent = '기존';
-            existingBtn.className = allBtn.className;
-            existingBtn.setAttribute('data-custom', 'existing');
-            newbieEl.after(existingBtn);
+          if (nb2) {
+            var eb = document.createElement('button');
+            eb.textContent = '기존';
+            eb.className = allBtn.className;
+            eb.setAttribute('data-custom', 'existing');
+            nb2.after(eb);
           }
         }
       }
@@ -331,7 +326,7 @@
       function attachListeners() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
-          if (t === '신입' || t === '기존' || t === '특강' || t === '관리자') {
+          if (['신입','기존','특강','관리자'].indexOf(t) > -1) {
             btn.onclick = function(e) {
               e.stopPropagation();
               currentFilter = t;
@@ -342,18 +337,17 @@
           if (t === '전체') {
             btn.onclick = function(e) {
               e.stopPropagation();
-              currentFilter = '전체';
+              currentFilter = null;
               showAll();
-              updateActive('전체');
+              updateActive(null);
             };
           }
         });
       }
 
-      // ④ 행 필터링 - 모든 셀에서 텍스트 매칭
+      // ④ 행 필터링
       function filterRows(type) {
-        var rows = document.querySelectorAll('table tbody tr');
-        rows.forEach(function(row) {
+        document.querySelectorAll('table tbody tr').forEach(function(row) {
           var cells = row.querySelectorAll('td');
           var matched = false;
           cells.forEach(function(cell) {
@@ -369,50 +363,45 @@
         });
       }
 
+      // ⑤ 버튼 색상: 클릭한 것만 파란색, 초기엔 모두 흰색
       function updateActive(label) {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
           if (['전체','신입','기존','특강','관리자'].indexOf(t) > -1) {
-            if (t === label) {
-              // 활성 - 파란색
-              btn.style.background = '#2563eb';
-              btn.style.color = 'white';
-              btn.style.borderColor = '#2563eb';
-              btn.style.outline = '';
+            if (label && t === label) {
+              btn.style.setProperty('background-color', '#2563eb', 'important');
+              btn.style.setProperty('color', 'white', 'important');
+              btn.style.setProperty('border-color', '#2563eb', 'important');
             } else {
-              // 비활성 - 흰색 원래대로
-              btn.style.background = '';
-              btn.style.color = '';
-              btn.style.borderColor = '';
-              btn.style.outline = '';
+              btn.style.removeProperty('background-color');
+              btn.style.removeProperty('color');
+              btn.style.removeProperty('border-color');
             }
           }
         });
       }
 
-      // ⑤ 백업 버튼 추가 (교육 기록 헤더 옆)
+      // ⑥ 백업 버튼 추가
       function addBackupBtn() {
-        var headers = Array.from(document.querySelectorAll('h2'));
-        var recordHeader = headers.find(function(h) { return h.textContent.trim() === '교육 기록'; });
+        var recordHeader = Array.from(document.querySelectorAll('h2')).find(function(h) {
+          return h.textContent.trim() === '교육 기록';
+        });
         if (!recordHeader) return;
-        var parent = recordHeader.parentElement;
-        if (!parent || parent.querySelector('[data-backup-btn]')) return;
-
+        if (document.querySelector('[data-backup-btn]')) return;
         var btn = document.createElement('button');
         btn.textContent = '📥 전체 백업 다운로드';
         btn.setAttribute('data-backup-btn', 'true');
         btn.style.cssText = 'padding:5px 10px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;margin-top:8px;display:block;';
         btn.onmouseover = function() { btn.style.background = '#047857'; };
         btn.onmouseout = function() { btn.style.background = '#059669'; };
-        btn.onclick = function(e) {
-          e.stopPropagation();
-          downloadExcel();
-        };
+        btn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
         recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
-      // ⑥ 엑셀 다운로드 (3개 시트: 교육기록 / 강사별월별현황 / 센터별현황)
+      // ⑦ 엑셀 다운로드
       function downloadExcel() {
+        // 테이블 데이터 수집
+        // 컬럼 순서: 유형(0), 날짜(1), 센터(2), 강사(3), 과정명(4), 방식(5), 인원(6), 시간(7), 관리(8)
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
         rows.forEach(function(row) {
@@ -421,11 +410,7 @@
             data.push(cells.map(function(c) { return c.textContent.trim(); }));
           }
         });
-
-        if (data.length === 0) {
-          alert('백업할 데이터가 없습니다.');
-          return;
-        }
+        if (data.length === 0) { alert('백업할 데이터가 없습니다.'); return; }
 
         var thCells = Array.from(document.querySelectorAll('table thead th'));
         var headers = thCells.map(function(th) { return th.textContent.trim(); });
@@ -433,147 +418,111 @@
         function pad(n) { return String(n).padStart(2,'0'); }
         function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-        // 강사 순서 고정: 김보경, 김현정, 나혜리, 구혜린
+        // 강사 순서 고정
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
 
         // 강사별 월별 집계
+        // row[3]=강사, row[1]=날짜(2026-05-27), row[7]=시간, row[6]=인원
         var instrMonthMap = {};
         var allMonths = {};
         data.forEach(function(row) {
           var instr = row[3] || '미배정';
-          var rawMonth = row[1] || (row[0] ? row[0].substring(0,7) : '미상');
-          // 월 표시: 2026-05 → 5월
-          var monthLabel = rawMonth;
-          var mMatch = String(rawMonth).match(/\d{4}-(\d{2})/);
-          if (mMatch) monthLabel = parseInt(mMatch[1]) + '월';
+          var dateStr = row[1] || '';
+          var mMatch = String(dateStr).match(/(\d{4})-(\d{2})/);
+          var monthKey = mMatch ? (mMatch[1] + '-' + mMatch[2]) : '미상';
+          var monthLabel = mMatch ? (parseInt(mMatch[2]) + '월') : '미상';
           if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
-          if (!instrMonthMap[instr][rawMonth]) instrMonthMap[instr][rawMonth] = {label: monthLabel, 교육횟수:0, 총시간:0, 총인원:0};
-          instrMonthMap[instr][rawMonth].교육횟수++;
-          instrMonthMap[instr][rawMonth].총시간 += parseFloat(row[7]) || 0;
-          instrMonthMap[instr][rawMonth].총인원 += parseInt(row[6]) || 0;
-          allMonths[rawMonth] = monthLabel;
+          if (!instrMonthMap[instr][monthKey]) instrMonthMap[instr][monthKey] = {label:monthLabel, 교육횟수:0, 총시간:0, 총인원:0};
+          instrMonthMap[instr][monthKey].교육횟수++;
+          instrMonthMap[instr][monthKey].총시간 += parseFloat(row[7]) || 0;
+          instrMonthMap[instr][monthKey].총인원 += parseInt(row[6]) || 0;
+          allMonths[monthKey] = monthLabel;
         });
 
-        // 월 목록 정렬
         var sortedMonthKeys = Object.keys(allMonths).sort();
 
-        // 강사 순서: 지정 순서 먼저, 나머지 뒤에
+        // 강사 순서 정렬
         var allInstrs = Object.keys(instrMonthMap);
         var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
         allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
 
         // 강사별현황 가로 레이아웃
-        // 1행: 빈칸 | 김보경 | | | | 김현정 | | | | 나혜리 | | | | 구혜린
-        // 2행: 월   | 교육횟수 | 총시간 | 총인원 | (반복)
-        // 3행~: 월별 데이터
-        // 마지막행: 합계
+        // 행1: 빈칸 | 강사명 | '' | '' | '' | 강사명 | ...
+        // 행2: 월   | 월    | 총교육시간(H) | 교육횟수 | 총교육인원(명) | 반복
+        // 행3~: 월별 데이터
+        // 마지막: 합계
 
-        var instrHeaders = ['월'];
-        sortedInstrs.forEach(function(instr) {
-          instrHeaders.push(instr); // 강사 이름
-          instrHeaders.push('교육횟수');
-          instrHeaders.push('총시간(H)');
-          instrHeaders.push('총인원(명)');
-        });
-
-        // 서브헤더 행 (월 | 교육횟수 총시간 총인원 반복)
-        var subHeader = [''];
-        sortedInstrs.forEach(function() {
-          subHeader.push('교육횟수');
-          subHeader.push('총시간(H)');
-          subHeader.push('총인원(명)');
-          subHeader.push(''); // 구분용 빈칸
-        });
-
-        var instrData = [];
+        var instrSheetData = [];
 
         // 강사 이름 행
         var nameRow = [''];
         sortedInstrs.forEach(function(instr) {
-          nameRow.push(instr);
-          nameRow.push('');
-          nameRow.push('');
-          nameRow.push('');
+          nameRow.push(instr); nameRow.push(''); nameRow.push(''); nameRow.push('');
         });
-        instrData.push(nameRow);
+        instrSheetData.push(nameRow);
 
         // 항목 헤더 행
         var itemRow = ['월'];
         sortedInstrs.forEach(function() {
-          itemRow.push('총교육시간(H)');
-          itemRow.push('교육횟수');
-          itemRow.push('총교육인원(명)');
-          itemRow.push('');
+          itemRow.push('총교육시간(H)'); itemRow.push('교육횟수'); itemRow.push('총교육인원(명)'); itemRow.push('');
         });
-        instrData.push(itemRow);
+        instrSheetData.push(itemRow);
 
-        // 월별 데이터 행
+        // 월별 데이터
         sortedMonthKeys.forEach(function(mk) {
-          var row = [allMonths[mk]]; // 월 표시 (예: 5월)
+          var row = [allMonths[mk]];
           sortedInstrs.forEach(function(instr) {
             var d = instrMonthMap[instr] && instrMonthMap[instr][mk];
             if (d) {
-              row.push(d.총시간);
-              row.push(d.교육횟수);
-              row.push(d.총인원);
+              row.push(d.총시간); row.push(d.교육횟수); row.push(d.총인원); row.push('');
             } else {
-              row.push('-');
-              row.push('-');
-              row.push('-');
+              row.push('-'); row.push('-'); row.push('-'); row.push('');
             }
-            row.push('');
           });
-          instrData.push(row);
+          instrSheetData.push(row);
         });
 
         // 합계 행
         var totalRow = ['합계'];
         sortedInstrs.forEach(function(instr) {
-          var total = {교육횟수:0, 총시간:0, 총인원:0};
+          var t = {교육횟수:0, 총시간:0, 총인원:0};
           sortedMonthKeys.forEach(function(mk) {
             if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
-              total.교육횟수 += instrMonthMap[instr][mk].교육횟수;
-              total.총시간 += instrMonthMap[instr][mk].총시간;
-              total.총인원 += instrMonthMap[instr][mk].총인원;
+              t.교육횟수 += instrMonthMap[instr][mk].교육횟수;
+              t.총시간 += instrMonthMap[instr][mk].총시간;
+              t.총인원 += instrMonthMap[instr][mk].총인원;
             }
           });
-          totalRow.push(total.총시간);
-          totalRow.push(total.교육횟수);
-          totalRow.push(total.총인원);
-          totalRow.push('');
+          totalRow.push(t.총시간); totalRow.push(t.교육횟수); totalRow.push(t.총인원); totalRow.push('');
         });
-        instrData.push(totalRow);
-
-        // makeSheet 호출용 헤더는 첫 행(강사명행)으로 대체하므로 빈 배열 사용
-        var instrHeaders2 = [];
+        instrSheetData.push(totalRow);
 
         // 센터별 집계
         var centerMap = {};
         data.forEach(function(row) {
-          var center = row[2] || '미배정';
-          if (!centerMap[center]) centerMap[center] = {교육횟수:0, 총시간:0, 총인원:0};
-          centerMap[center].교육횟수++;
-          centerMap[center].총시간 += parseFloat(row[7]) || 0;
-          centerMap[center].총인원 += parseInt(row[6]) || 0;
+          var c = row[2] || '미배정';
+          if (!centerMap[c]) centerMap[c] = {교육횟수:0, 총시간:0, 총인원:0};
+          centerMap[c].교육횟수++;
+          centerMap[c].총시간 += parseFloat(row[7]) || 0;
+          centerMap[c].총인원 += parseInt(row[6]) || 0;
         });
         var centerData = Object.entries(centerMap).map(function(e) {
           return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
         });
 
         var now = new Date();
-        var ymd = now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate());
-        var filename = 'MetaM_교육백업_' + ymd + '.xls';
+        var filename = 'MetaM_교육백업_' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '.xls';
 
         function makeSheet(name, sheetHeaders, sheetData) {
           var xml = '<Worksheet ss:Name="' + esc(name) + '"><Table>';
           xml += '<Row>' + sheetHeaders.map(function(h) {
-            return '<Cell ss:StyleID="header"><Data ss:Type="String">' + esc(h) + '</Data></Cell>';
+            return '<Cell ss:StyleID="hd"><Data ss:Type="String">' + esc(String(h)) + '</Data></Cell>';
           }).join('') + '</Row>';
           sheetData.forEach(function(row) {
             xml += '<Row>' + row.map(function(cell) {
-              if (cell === '') return '<Cell><Data ss:Type="String"></Data></Cell>';
+              if (cell === '' || cell === undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
               var num = parseFloat(cell);
-              var isNum = !isNaN(num) && String(cell).trim() !== '';
+              var isNum = !isNaN(num) && String(cell).trim() !== '' && cell !== '-';
               return isNum
                 ? '<Cell><Data ss:Type="Number">' + num + '</Data></Cell>'
                 : '<Cell><Data ss:Type="String">' + esc(String(cell)) + '</Data></Cell>';
@@ -586,23 +535,20 @@
         var wb = '<?xml version="1.0" encoding="UTF-8"?>'
           + '<?mso-application progid="Excel.Sheet"?>'
           + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '
-          + 'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" '
-          + 'xmlns:x="urn:schemas-microsoft-com:office:excel">'
-          + '<Styles>'
-          + '<Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style>'
-          + '<Style ss:ID="subtotal"><Font ss:Bold="1"/><Interior ss:Color="#FEF9C3" ss:Pattern="Solid"/></Style>'
-          + '</Styles>'
+          + 'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+          + '<Styles><Style ss:ID="hd"><Font ss:Bold="1"/>'
+          + '<Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style></Styles>'
           + makeSheet('교육기록', headers, data)
-          + makeSheet('강사별현황', instrData[0], instrData.slice(1))
+          + makeSheet('강사별현황', instrSheetData[0], instrSheetData.slice(1))
           + makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
           + '</Workbook>';
 
-        var blob = new Blob(['﻿' + wb], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        var blob = new Blob(['\uFEFF' + wb], {type:'application/vnd.ms-excel;charset=utf-8;'});
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
-        alert('✅ 백업 완료! 파일명: ' + filename + ' / 총 ' + data.length + '건 저장 (교육기록·강사별현황·센터별현황)');
+        alert('백업 완료! ' + filename + ' / 총 ' + data.length + '건 저장');
       }
 
       if (document.readyState === 'loading') {
@@ -612,5 +558,6 @@
       }
     })();
     </script>
+
   </body>
 </html>
