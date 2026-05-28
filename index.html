@@ -259,7 +259,7 @@
     <script>
     (function() {
       var currentFilter = null;
-      var myFilterContainer = null;
+      var currentInstructor = '전체 강사';
 
       function waitForReact() {
         var debounce = null;
@@ -277,14 +277,16 @@
         hideReactFilterBtns();
         ensureMyFilterBtns();
         addBackupBtn();
+        addSatisfactionCol();
         if (currentFilter) filterRows(currentFilter);
+        else showAll();
+        applyInstructorFilter();
       }
 
-      // ① React 원본 필터 버튼 컨테이너를 숨김 (정규 포함 전체)
+      // ① React 원본 필터 버튼 컨테이너 숨김
       function hideReactFilterBtns() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
-          // 정규, 특강, 관리자, 전체 등 React 원본 필터 버튼이 있는 컨테이너 찾기
           if ((t === '전체' || t === '정규' || t === '특강' || t === '관리자') && !btn.hasAttribute('data-my-btn')) {
             var parent = btn.parentElement;
             if (parent && !parent.hasAttribute('data-react-hidden')) {
@@ -295,62 +297,80 @@
         });
       }
 
-      // ② 내 버튼 컨테이너 생성 (React와 완전히 독립)
+      // ② 내 필터 버튼 + 강사 드롭다운 생성
       function ensureMyFilterBtns() {
-        // 이미 내 버튼 컨테이너가 있으면 스킵
         if (document.getElementById('my-filter-btns')) return;
-
-        // 숨겨진 React 버튼 컨테이너 찾기
         var hiddenParent = document.querySelector('[data-react-hidden="true"]');
         if (!hiddenParent) return;
 
-        // 내 버튼 컨테이너 생성
         var container = document.createElement('div');
         container.id = 'my-filter-btns';
-        container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;';
+        container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;';
 
+        // 필터 버튼 5개
         var filterLabels = ['전체','신입','기존','특강','관리자'];
         filterLabels.forEach(function(label) {
           var btn = document.createElement('button');
           btn.textContent = label;
           btn.setAttribute('data-my-btn', 'true');
-          btn.style.cssText = getInactiveBtnStyle();
+          btn.style.cssText = getBtnStyle(false);
           btn.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (label === '전체') {
-              currentFilter = null;
-              showAll();
-            } else {
-              currentFilter = label;
-              filterRows(label);
-            }
+            currentFilter = (label === '전체') ? null : label;
+            if (!currentFilter) showAll(); else filterRows(currentFilter);
+            applyInstructorFilter();
             updateMyBtns();
           });
           container.appendChild(btn);
         });
 
-        // React 버튼 컨테이너 바로 앞에 삽입
+        // 강사 드롭다운
+        var select = document.createElement('select');
+        select.id = 'my-instr-select';
+        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;';
+        var instructors = ['전체 강사','김보경','김현정','나혜리','구혜린'];
+        instructors.forEach(function(name) {
+          var opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          select.appendChild(opt);
+        });
+        select.addEventListener('change', function() {
+          currentInstructor = select.value;
+          if (currentFilter) filterRows(currentFilter); else showAll();
+          applyInstructorFilter();
+        });
+        container.appendChild(select);
+
         hiddenParent.parentNode.insertBefore(container, hiddenParent);
       }
 
-      function getInactiveBtnStyle() {
-        return 'padding:8px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.15s;';
-      }
-      function getActiveBtnStyle() {
-        return 'padding:8px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 8px rgba(37,99,235,0.3);';
+      function getBtnStyle(active) {
+        return active
+          ? 'padding:8px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.3);'
+          : 'padding:8px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;';
       }
 
-      // ③ 내 버튼 활성/비활성 상태 업데이트
       function updateMyBtns() {
         var container = document.getElementById('my-filter-btns');
         if (!container) return;
-        Array.from(container.querySelectorAll('button')).forEach(function(btn) {
+        Array.from(container.querySelectorAll('button[data-my-btn]')).forEach(function(btn) {
           var t = btn.textContent.trim();
-          if (currentFilter && t === currentFilter) {
-            btn.style.cssText = getActiveBtnStyle();
-          } else {
-            btn.style.cssText = getInactiveBtnStyle();
-          }
+          var isActive = (currentFilter && t === currentFilter) || (!currentFilter && t === '전체');
+          btn.style.cssText = getBtnStyle(isActive);
+        });
+      }
+
+      // ③ 강사 필터 적용
+      function applyInstructorFilter() {
+        if (currentInstructor === '전체 강사') return;
+        document.querySelectorAll('table tbody tr').forEach(function(row) {
+          if (row.style.display === 'none') return;
+          var cells = row.querySelectorAll('td');
+          var hasInstr = false;
+          cells.forEach(function(cell) {
+            if (cell.textContent.trim() === currentInstructor) hasInstr = true;
+          });
+          if (!hasInstr) row.style.display = 'none';
         });
       }
 
@@ -359,20 +379,50 @@
         document.querySelectorAll('table tbody tr').forEach(function(row) {
           var cells = row.querySelectorAll('td');
           var matched = false;
-          cells.forEach(function(cell) {
-            if (cell.textContent.trim() === type) matched = true;
-          });
+          cells.forEach(function(cell) { if (cell.textContent.trim() === type) matched = true; });
           row.style.display = matched ? '' : 'none';
         });
       }
 
       function showAll() {
-        document.querySelectorAll('table tbody tr').forEach(function(row) {
-          row.style.display = '';
+        document.querySelectorAll('table tbody tr').forEach(function(row) { row.style.display = ''; });
+      }
+
+      // ⑤ 만족도 컬럼 추가 (시간과 관리 사이)
+      function addSatisfactionCol() {
+        var table = document.querySelector('table');
+        if (!table) return;
+        var thead = table.querySelector('thead tr');
+        if (!thead) return;
+        var ths = Array.from(thead.querySelectorAll('th'));
+        // 이미 만족도 헤더 있으면 스킵
+        if (ths.some(function(th) { return th.textContent.trim() === '만족도'; })) return;
+        // '시간' 헤더 찾기
+        var timeIdx = -1;
+        ths.forEach(function(th, i) { if (th.textContent.trim() === '시간') timeIdx = i; });
+        if (timeIdx < 0) return;
+        // 만족도 헤더 삽입 (시간 다음)
+        var satTh = document.createElement('th');
+        satTh.textContent = '만족도';
+        satTh.setAttribute('data-sat-col', 'true');
+        satTh.style.cssText = ths[timeIdx].style.cssText;
+        satTh.className = ths[timeIdx].className;
+        ths[timeIdx].after(satTh);
+        // 각 행에 만족도 셀 추가
+        Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
+          var tds = row.querySelectorAll('td');
+          if (tds.length > timeIdx && !row.querySelector('[data-sat-cell]')) {
+            var satTd = document.createElement('td');
+            satTd.setAttribute('data-sat-cell', 'true');
+            satTd.textContent = '-';
+            satTd.style.cssText = tds[timeIdx].style.cssText;
+            satTd.className = tds[timeIdx].className;
+            tds[timeIdx].after(satTd);
+          }
         });
       }
 
-      // ⑤ 백업 버튼 추가
+      // ⑥ 백업 버튼 추가
       function addBackupBtn() {
         if (document.querySelector('[data-backup-btn]')) return;
         var recordHeader = Array.from(document.querySelectorAll('h2')).find(function(h) {
@@ -389,22 +439,23 @@
         recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
-      // ⑥ 엑셀 다운로드
+      // ⑦ 엑셀 다운로드
       function downloadExcel() {
+        // 만족도 셀 제외하고 원본 데이터만 수집
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
         rows.forEach(function(row) {
-          var cells = Array.from(row.querySelectorAll('td'));
+          var cells = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
           if (cells.length > 0) data.push(cells.map(function(c) { return c.textContent.trim(); }));
         });
         if (data.length === 0) { alert('백업할 데이터가 없습니다.'); return; }
 
-        var headers = Array.from(document.querySelectorAll('table thead th')).map(function(th) { return th.textContent.trim(); });
+        var headers = Array.from(document.querySelectorAll('table thead th:not([data-sat-col])')).map(function(th) { return th.textContent.trim(); });
 
         function pad(n) { return String(n).padStart(2,'0'); }
         function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-        // 날짜 패턴을 모든 셀에서 찾기 (어느 컬럼이든 2026-05-27 형식 찾기)
+        // 날짜 패턴 자동 감지
         function getDateFromRow(row) {
           for (var i = 0; i < row.length; i++) {
             var m = String(row[i]).match(/(\d{4})-(\d{2})-\d{2}/);
@@ -413,15 +464,11 @@
           return { key: '미상', label: '미상' };
         }
 
-        // 강사 컬럼 찾기 (헤더에서 '강사' 찾기)
-        var instrIdx = headers.indexOf('강사');
-        var instrIdx2 = instrIdx < 0 ? 3 : instrIdx;
-
-        // 시간/인원 컬럼 찾기
-        var timeIdx = headers.indexOf('시간');
-        var timeIdx2 = timeIdx < 0 ? 7 : timeIdx;
-        var personIdx = headers.indexOf('인원');
-        var personIdx2 = personIdx < 0 ? 6 : personIdx;
+        // 헤더에서 컬럼 인덱스 자동 탐색
+        var instrIdx = Math.max(headers.indexOf('강사'), 0);
+        var timeIdx = Math.max(headers.indexOf('시간'), 0);
+        var personIdx = Math.max(headers.indexOf('인원'), 0);
+        var centerIdx = Math.max(headers.indexOf('센터'), 0);
 
         // 강사별 월별 집계
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
@@ -429,13 +476,13 @@
         var allMonths = {};
 
         data.forEach(function(row) {
-          var instr = row[instrIdx2] || '미배정';
+          var instr = row[instrIdx] || '미배정';
           var dateInfo = getDateFromRow(row);
           if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
           if (!instrMonthMap[instr][dateInfo.key]) instrMonthMap[instr][dateInfo.key] = {label:dateInfo.label, 교육횟수:0, 총시간:0, 총인원:0};
           instrMonthMap[instr][dateInfo.key].교육횟수++;
-          instrMonthMap[instr][dateInfo.key].총시간 += parseFloat(row[timeIdx2]) || 0;
-          instrMonthMap[instr][dateInfo.key].총인원 += parseInt(row[personIdx2]) || 0;
+          instrMonthMap[instr][dateInfo.key].총시간 += parseFloat(row[timeIdx]) || 0;
+          instrMonthMap[instr][dateInfo.key].총인원 += parseInt(row[personIdx]) || 0;
           allMonths[dateInfo.key] = dateInfo.label;
         });
 
@@ -478,15 +525,13 @@
         instrSheetData.push(totalRow);
 
         // 센터별 집계
-        var centerIdx = headers.indexOf('센터');
-        var centerIdx2 = centerIdx < 0 ? 2 : centerIdx;
         var centerMap = {};
         data.forEach(function(row) {
-          var c = row[centerIdx2] || '미배정';
+          var c = row[centerIdx] || '미배정';
           if (!centerMap[c]) centerMap[c] = {교육횟수:0, 총시간:0, 총인원:0};
           centerMap[c].교육횟수++;
-          centerMap[c].총시간 += parseFloat(row[timeIdx2]) || 0;
-          centerMap[c].총인원 += parseInt(row[personIdx2]) || 0;
+          centerMap[c].총시간 += parseFloat(row[timeIdx]) || 0;
+          centerMap[c].총인원 += parseInt(row[personIdx]) || 0;
         });
         var centerData = Object.entries(centerMap).map(function(e) {
           return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
@@ -502,7 +547,7 @@
             xml += '<Row>'+row.map(function(cell) {
               if (cell===''||cell===undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
               var num = parseFloat(cell);
-              return (!isNaN(num) && cell!=='-') ? '<Cell><Data ss:Type="Number">'+num+'</Data></Cell>' : '<Cell><Data ss:Type="String">'+esc(String(cell))+'</Data></Cell>';
+              return (!isNaN(num) && String(cell)!=='-') ? '<Cell><Data ss:Type="Number">'+num+'</Data></Cell>' : '<Cell><Data ss:Type="String">'+esc(String(cell))+'</Data></Cell>';
             }).join('')+'</Row>';
           });
           xml += '</Table></Worksheet>';
