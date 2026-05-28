@@ -271,60 +271,96 @@
         setTimeout(applyCustomizations, 2000);
       }
 
-function applyCustomizations() {
-        // 1. 필터 버튼 수정: "정규" → "신입", "기존"으로 분리
-        const buttons = document.querySelectorAll('button');
-        let filterApplied = false;
-
-        buttons.forEach(btn => {
-          if (btn.textContent.trim() === '정규') {
-            const parent = btn.parentElement;
-            if (parent && !parent.querySelector('[data-custom-added]')) {
-              // 신입 버튼 생성
-              const newBtn = btn.cloneNode(true);
-              newBtn.textContent = '신입';
-              newBtn.setAttribute('data-custom-added', 'trainee');
-              newBtn.onclick = () => {
-                applyTraineeFilter('신입');
-              };
-              
-              // 기존 버튼 생성
-              const existingBtn = btn.cloneNode(true);
-              existingBtn.textContent = '기존';
-              existingBtn.setAttribute('data-custom-added', 'existing');
-              existingBtn.onclick = () => {
-                applyTraineeFilter('기존');
-              };
-              
-              // 전체 버튼 다음에 신입, 기존 추가
-              const allBtn = Array.from(parent.children).find(b => b.textContent.trim() === '전체');
-              if (allBtn) {
-                allBtn.after(newBtn);
-                newBtn.after(existingBtn);
-              }
-              
-              // 원래 "정규" 버튼 제거
-              btn.remove();
+      function applyCustomizations() {
+        // 필터 버튼에 "신입" 추가
+        setTimeout(() => {
+          const filterButtons = document.querySelectorAll('button');
+          let hasTraineeBtn = false;
+ 
+          // 이미 신입 버튼이 있는지 확인
+          filterButtons.forEach(btn => {
+            if (btn.textContent.trim() === '신입') {
+              hasTraineeBtn = true;
             }
+          });
+ 
+          // 신입 버튼이 없으면 생성
+          if (!hasTraineeBtn) {
+            filterButtons.forEach(btn => {
+              if (btn.textContent.trim() === '전체') {
+                const parent = btn.parentElement;
+                
+                // 신입 버튼 생성
+                const traineeBtn = document.createElement('button');
+                traineeBtn.textContent = '신입';
+                traineeBtn.className = btn.className;
+                traineeBtn.onclick = () => applyTraineeFilter('신입');
+                traineeBtn.setAttribute('data-filter', 'trainee');
+                
+                // 전체 버튼 다음에 삽입
+                btn.after(traineeBtn);
+              }
+            });
+          }
+ 
+          // 테이블 행 필터링
+          attachFilterListeners();
+        }, 1000);
+      }
+ 
+      // 필터 버튼 클릭 이벤트 추가
+      function attachFilterListeners() {
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent.trim() === '신입') {
+            btn.onclick = (e) => {
+              e.preventDefault();
+              applyTraineeFilter('신입');
+            };
+          }
+          if (btn.textContent.trim() === '기존') {
+            btn.onclick = (e) => {
+              e.preventDefault();
+              applyTraineeFilter('기존');
+            };
+          }
+          if (btn.textContent.trim() === '전체') {
+            btn.onclick = (e) => {
+              e.preventDefault();
+              showAllRows();
+            };
           }
         });
       }
-
-      // 필터링 함수
+ 
+      // 신입 필터링 함수
       function applyTraineeFilter(type) {
         const rows = document.querySelectorAll('table tbody tr');
+        let foundRows = 0;
+ 
         rows.forEach(row => {
           const cells = row.querySelectorAll('td');
           if (cells.length > 0) {
-            // 테이블의 유형 칼럼 확인 (보통 첫 번째 칼럼)
-            const typeCell = cells[0]?.textContent.trim();
+            // 테이블의 유형 칼럼 찾기 (보통 2번째 칼럼)
+            const typeCell = cells[1]?.textContent.trim() || cells[0]?.textContent.trim();
             
             if (typeCell === type) {
               row.style.display = '';
+              foundRows++;
             } else {
               row.style.display = 'none';
             }
           }
+        });
+ 
+        console.log(`${type} 필터: ${foundRows}개 행 표시`);
+      }
+ 
+      // 모든 행 보기
+      function showAllRows() {
+        const rows = document.querySelectorAll('table tbody tr');
+        rows.forEach(row => {
+          row.style.display = '';
         });
       }
 
