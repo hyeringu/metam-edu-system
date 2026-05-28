@@ -258,8 +258,8 @@
     <!-- 커스텀 UI 수정 스크립트 -->
     <script>
     (function() {
-      // 현재 필터 상태 (초기값: 없음 - 아무것도 파란색 아님)
       var currentFilter = null;
+      var myFilterContainer = null;
 
       function waitForReact() {
         var debounce = null;
@@ -274,73 +274,82 @@
       }
 
       function applyCustomizations() {
-        removeRegularBtn();
-        addFilterBtns();
-        attachListeners();
+        hideReactFilterBtns();
+        ensureMyFilterBtns();
         addBackupBtn();
-        if (currentFilter) {
-          filterRows(currentFilter);
-          updateActive(currentFilter);
-        }
+        if (currentFilter) filterRows(currentFilter);
       }
 
-      // ① 정규 버튼 제거
-      function removeRegularBtn() {
+      // ① React 원본 필터 버튼 컨테이너를 숨김 (정규 포함 전체)
+      function hideReactFilterBtns() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
-          if (t === '정규' || t === '정규과정') btn.remove();
+          // 정규, 특강, 관리자, 전체 등 React 원본 필터 버튼이 있는 컨테이너 찾기
+          if ((t === '전체' || t === '정규' || t === '특강' || t === '관리자') && !btn.hasAttribute('data-my-btn')) {
+            var parent = btn.parentElement;
+            if (parent && !parent.hasAttribute('data-react-hidden')) {
+              parent.setAttribute('data-react-hidden', 'true');
+              parent.style.setProperty('display', 'none', 'important');
+            }
+          }
         });
       }
 
-      // ② 신입/기존 버튼 추가
-      function addFilterBtns() {
-        var buttons = Array.from(document.querySelectorAll('button'));
-        var allBtn = buttons.find(function(b) { return b.textContent.trim() === '전체'; });
-        if (!allBtn) return;
-        var parent = allBtn.parentElement;
-        if (!parent) return;
-        var parentBtns = Array.from(parent.querySelectorAll('button'));
-        var hasNewbie = parentBtns.some(function(b) { return b.textContent.trim() === '신입'; });
-        var hasExisting = parentBtns.some(function(b) { return b.textContent.trim() === '기존'; });
-        if (!hasNewbie) {
-          var nb = document.createElement('button');
-          nb.textContent = '신입';
-          nb.className = allBtn.className;
-          nb.setAttribute('data-custom', 'newbie');
-          allBtn.after(nb);
-        }
-        if (!hasExisting) {
-          var nb2 = parent.querySelector('[data-custom="newbie"]') ||
-            Array.from(parent.querySelectorAll('button')).find(function(b) { return b.textContent.trim() === '신입'; });
-          if (nb2) {
-            var eb = document.createElement('button');
-            eb.textContent = '기존';
-            eb.className = allBtn.className;
-            eb.setAttribute('data-custom', 'existing');
-            nb2.after(eb);
-          }
-        }
-      }
+      // ② 내 버튼 컨테이너 생성 (React와 완전히 독립)
+      function ensureMyFilterBtns() {
+        // 이미 내 버튼 컨테이너가 있으면 스킵
+        if (document.getElementById('my-filter-btns')) return;
 
-      // ③ 버튼 이벤트 연결
-      function attachListeners() {
-        document.querySelectorAll('button').forEach(function(btn) {
-          var t = btn.textContent.trim();
-          if (['신입','기존','특강','관리자'].indexOf(t) > -1) {
-            btn.onclick = function(e) {
-              e.stopPropagation();
-              currentFilter = t;
-              filterRows(t);
-              updateActive(t);
-            };
-          }
-          if (t === '전체') {
-            btn.onclick = function(e) {
-              e.stopPropagation();
+        // 숨겨진 React 버튼 컨테이너 찾기
+        var hiddenParent = document.querySelector('[data-react-hidden="true"]');
+        if (!hiddenParent) return;
+
+        // 내 버튼 컨테이너 생성
+        var container = document.createElement('div');
+        container.id = 'my-filter-btns';
+        container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;';
+
+        var filterLabels = ['전체','신입','기존','특강','관리자'];
+        filterLabels.forEach(function(label) {
+          var btn = document.createElement('button');
+          btn.textContent = label;
+          btn.setAttribute('data-my-btn', 'true');
+          btn.style.cssText = getInactiveBtnStyle();
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (label === '전체') {
               currentFilter = null;
               showAll();
-              updateActive(null);
-            };
+            } else {
+              currentFilter = label;
+              filterRows(label);
+            }
+            updateMyBtns();
+          });
+          container.appendChild(btn);
+        });
+
+        // React 버튼 컨테이너 바로 앞에 삽입
+        hiddenParent.parentNode.insertBefore(container, hiddenParent);
+      }
+
+      function getInactiveBtnStyle() {
+        return 'padding:8px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.15s;';
+      }
+      function getActiveBtnStyle() {
+        return 'padding:8px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;box-shadow:0 2px 8px rgba(37,99,235,0.3);';
+      }
+
+      // ③ 내 버튼 활성/비활성 상태 업데이트
+      function updateMyBtns() {
+        var container = document.getElementById('my-filter-btns');
+        if (!container) return;
+        Array.from(container.querySelectorAll('button')).forEach(function(btn) {
+          var t = btn.textContent.trim();
+          if (currentFilter && t === currentFilter) {
+            btn.style.cssText = getActiveBtnStyle();
+          } else {
+            btn.style.cssText = getInactiveBtnStyle();
           }
         });
       }
@@ -363,31 +372,13 @@
         });
       }
 
-      // ⑤ 버튼 색상: 클릭한 것만 파란색, 초기엔 모두 흰색
-      function updateActive(label) {
-        document.querySelectorAll('button').forEach(function(btn) {
-          var t = btn.textContent.trim();
-          if (['전체','신입','기존','특강','관리자'].indexOf(t) > -1) {
-            if (label && t === label) {
-              btn.style.setProperty('background-color', '#2563eb', 'important');
-              btn.style.setProperty('color', 'white', 'important');
-              btn.style.setProperty('border-color', '#2563eb', 'important');
-            } else {
-              btn.style.removeProperty('background-color');
-              btn.style.removeProperty('color');
-              btn.style.removeProperty('border-color');
-            }
-          }
-        });
-      }
-
-      // ⑥ 백업 버튼 추가
+      // ⑤ 백업 버튼 추가
       function addBackupBtn() {
+        if (document.querySelector('[data-backup-btn]')) return;
         var recordHeader = Array.from(document.querySelectorAll('h2')).find(function(h) {
           return h.textContent.trim() === '교육 기록';
         });
         if (!recordHeader) return;
-        if (document.querySelector('[data-backup-btn]')) return;
         var btn = document.createElement('button');
         btn.textContent = '📥 전체 백업 다운로드';
         btn.setAttribute('data-backup-btn', 'true');
@@ -398,91 +389,80 @@
         recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
-      // ⑦ 엑셀 다운로드
+      // ⑥ 엑셀 다운로드
       function downloadExcel() {
-        // 테이블 데이터 수집
-        // 컬럼 순서: 유형(0), 날짜(1), 센터(2), 강사(3), 과정명(4), 방식(5), 인원(6), 시간(7), 관리(8)
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
         rows.forEach(function(row) {
           var cells = Array.from(row.querySelectorAll('td'));
-          if (cells.length > 0) {
-            data.push(cells.map(function(c) { return c.textContent.trim(); }));
-          }
+          if (cells.length > 0) data.push(cells.map(function(c) { return c.textContent.trim(); }));
         });
         if (data.length === 0) { alert('백업할 데이터가 없습니다.'); return; }
 
-        var thCells = Array.from(document.querySelectorAll('table thead th'));
-        var headers = thCells.map(function(th) { return th.textContent.trim(); });
+        var headers = Array.from(document.querySelectorAll('table thead th')).map(function(th) { return th.textContent.trim(); });
 
         function pad(n) { return String(n).padStart(2,'0'); }
         function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-        // 강사 순서 고정
-        var instrOrder = ['김보경','김현정','나혜리','구혜린'];
+        // 날짜 패턴을 모든 셀에서 찾기 (어느 컬럼이든 2026-05-27 형식 찾기)
+        function getDateFromRow(row) {
+          for (var i = 0; i < row.length; i++) {
+            var m = String(row[i]).match(/(\d{4})-(\d{2})-\d{2}/);
+            if (m) return { key: m[1]+'-'+m[2], label: parseInt(m[2])+'월' };
+          }
+          return { key: '미상', label: '미상' };
+        }
+
+        // 강사 컬럼 찾기 (헤더에서 '강사' 찾기)
+        var instrIdx = headers.indexOf('강사');
+        var instrIdx2 = instrIdx < 0 ? 3 : instrIdx;
+
+        // 시간/인원 컬럼 찾기
+        var timeIdx = headers.indexOf('시간');
+        var timeIdx2 = timeIdx < 0 ? 7 : timeIdx;
+        var personIdx = headers.indexOf('인원');
+        var personIdx2 = personIdx < 0 ? 6 : personIdx;
 
         // 강사별 월별 집계
-        // row[3]=강사, row[1]=날짜(2026-05-27), row[7]=시간, row[6]=인원
+        var instrOrder = ['김보경','김현정','나혜리','구혜린'];
         var instrMonthMap = {};
         var allMonths = {};
+
         data.forEach(function(row) {
-          var instr = row[3] || '미배정';
-          var dateStr = row[1] || '';
-          var mMatch = String(dateStr).match(/(\d{4})-(\d{2})/);
-          var monthKey = mMatch ? (mMatch[1] + '-' + mMatch[2]) : '미상';
-          var monthLabel = mMatch ? (parseInt(mMatch[2]) + '월') : '미상';
+          var instr = row[instrIdx2] || '미배정';
+          var dateInfo = getDateFromRow(row);
           if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
-          if (!instrMonthMap[instr][monthKey]) instrMonthMap[instr][monthKey] = {label:monthLabel, 교육횟수:0, 총시간:0, 총인원:0};
-          instrMonthMap[instr][monthKey].교육횟수++;
-          instrMonthMap[instr][monthKey].총시간 += parseFloat(row[7]) || 0;
-          instrMonthMap[instr][monthKey].총인원 += parseInt(row[6]) || 0;
-          allMonths[monthKey] = monthLabel;
+          if (!instrMonthMap[instr][dateInfo.key]) instrMonthMap[instr][dateInfo.key] = {label:dateInfo.label, 교육횟수:0, 총시간:0, 총인원:0};
+          instrMonthMap[instr][dateInfo.key].교육횟수++;
+          instrMonthMap[instr][dateInfo.key].총시간 += parseFloat(row[timeIdx2]) || 0;
+          instrMonthMap[instr][dateInfo.key].총인원 += parseInt(row[personIdx2]) || 0;
+          allMonths[dateInfo.key] = dateInfo.label;
         });
 
         var sortedMonthKeys = Object.keys(allMonths).sort();
-
-        // 강사 순서 정렬
         var allInstrs = Object.keys(instrMonthMap);
         var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
         allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
 
         // 강사별현황 가로 레이아웃
-        // 행1: 빈칸 | 강사명 | '' | '' | '' | 강사명 | ...
-        // 행2: 월   | 월    | 총교육시간(H) | 교육횟수 | 총교육인원(명) | 반복
-        // 행3~: 월별 데이터
-        // 마지막: 합계
-
         var instrSheetData = [];
-
-        // 강사 이름 행
         var nameRow = [''];
-        sortedInstrs.forEach(function(instr) {
-          nameRow.push(instr); nameRow.push(''); nameRow.push(''); nameRow.push('');
-        });
+        sortedInstrs.forEach(function(instr) { nameRow.push(instr); nameRow.push(''); nameRow.push(''); nameRow.push(''); });
         instrSheetData.push(nameRow);
 
-        // 항목 헤더 행
         var itemRow = ['월'];
-        sortedInstrs.forEach(function() {
-          itemRow.push('총교육시간(H)'); itemRow.push('교육횟수'); itemRow.push('총교육인원(명)'); itemRow.push('');
-        });
+        sortedInstrs.forEach(function() { itemRow.push('총교육시간(H)'); itemRow.push('교육횟수'); itemRow.push('총교육인원(명)'); itemRow.push(''); });
         instrSheetData.push(itemRow);
 
-        // 월별 데이터
         sortedMonthKeys.forEach(function(mk) {
           var row = [allMonths[mk]];
           sortedInstrs.forEach(function(instr) {
             var d = instrMonthMap[instr] && instrMonthMap[instr][mk];
-            if (d) {
-              row.push(d.총시간); row.push(d.교육횟수); row.push(d.총인원); row.push('');
-            } else {
-              row.push('-'); row.push('-'); row.push('-'); row.push('');
-            }
+            row.push(d ? d.총시간 : '-'); row.push(d ? d.교육횟수 : '-'); row.push(d ? d.총인원 : '-'); row.push('');
           });
           instrSheetData.push(row);
         });
 
-        // 합계 행
         var totalRow = ['합계'];
         sortedInstrs.forEach(function(instr) {
           var t = {교육횟수:0, 총시간:0, 총인원:0};
@@ -498,57 +478,51 @@
         instrSheetData.push(totalRow);
 
         // 센터별 집계
+        var centerIdx = headers.indexOf('센터');
+        var centerIdx2 = centerIdx < 0 ? 2 : centerIdx;
         var centerMap = {};
         data.forEach(function(row) {
-          var c = row[2] || '미배정';
+          var c = row[centerIdx2] || '미배정';
           if (!centerMap[c]) centerMap[c] = {교육횟수:0, 총시간:0, 총인원:0};
           centerMap[c].교육횟수++;
-          centerMap[c].총시간 += parseFloat(row[7]) || 0;
-          centerMap[c].총인원 += parseInt(row[6]) || 0;
+          centerMap[c].총시간 += parseFloat(row[timeIdx2]) || 0;
+          centerMap[c].총인원 += parseInt(row[personIdx2]) || 0;
         });
         var centerData = Object.entries(centerMap).map(function(e) {
           return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
         });
 
         var now = new Date();
-        var filename = 'MetaM_교육백업_' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '.xls';
+        var filename = 'MetaM_교육백업_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.xls';
 
-        function makeSheet(name, sheetHeaders, sheetData) {
-          var xml = '<Worksheet ss:Name="' + esc(name) + '"><Table>';
-          xml += '<Row>' + sheetHeaders.map(function(h) {
-            return '<Cell ss:StyleID="hd"><Data ss:Type="String">' + esc(String(h)) + '</Data></Cell>';
-          }).join('') + '</Row>';
-          sheetData.forEach(function(row) {
-            xml += '<Row>' + row.map(function(cell) {
-              if (cell === '' || cell === undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
+        function makeSheet(name, hdrs, rows2) {
+          var xml = '<Worksheet ss:Name="'+esc(name)+'"><Table>';
+          xml += '<Row>'+hdrs.map(function(h) { return '<Cell ss:StyleID="hd"><Data ss:Type="String">'+esc(String(h))+'</Data></Cell>'; }).join('')+'</Row>';
+          rows2.forEach(function(row) {
+            xml += '<Row>'+row.map(function(cell) {
+              if (cell===''||cell===undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
               var num = parseFloat(cell);
-              var isNum = !isNaN(num) && String(cell).trim() !== '' && cell !== '-';
-              return isNum
-                ? '<Cell><Data ss:Type="Number">' + num + '</Data></Cell>'
-                : '<Cell><Data ss:Type="String">' + esc(String(cell)) + '</Data></Cell>';
-            }).join('') + '</Row>';
+              return (!isNaN(num) && cell!=='-') ? '<Cell><Data ss:Type="Number">'+num+'</Data></Cell>' : '<Cell><Data ss:Type="String">'+esc(String(cell))+'</Data></Cell>';
+            }).join('')+'</Row>';
           });
           xml += '</Table></Worksheet>';
           return xml;
         }
 
-        var wb = '<?xml version="1.0" encoding="UTF-8"?>'
-          + '<?mso-application progid="Excel.Sheet"?>'
-          + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '
-          + 'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
-          + '<Styles><Style ss:ID="hd"><Font ss:Bold="1"/>'
-          + '<Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style></Styles>'
-          + makeSheet('교육기록', headers, data)
-          + makeSheet('강사별현황', instrSheetData[0], instrSheetData.slice(1))
-          + makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
-          + '</Workbook>';
+        var wb = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>'
+          +'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+          +'<Styles><Style ss:ID="hd"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style></Styles>'
+          +makeSheet('교육기록', headers, data)
+          +makeSheet('강사별현황', instrSheetData[0], instrSheetData.slice(1))
+          +makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
+          +'</Workbook>';
 
-        var blob = new Blob(['\uFEFF' + wb], {type:'application/vnd.ms-excel;charset=utf-8;'});
+        var blob = new Blob(['﻿'+wb], {type:'application/vnd.ms-excel;charset=utf-8;'});
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
-        a.href = url; a.download = filename; a.click();
+        a.href=url; a.download=filename; a.click();
         URL.revokeObjectURL(url);
-        alert('백업 완료! ' + filename + ' / 총 ' + data.length + '건 저장');
+        alert('백업 완료! '+filename+' / 총 '+data.length+'건 저장');
       }
 
       if (document.readyState === 'loading') {
