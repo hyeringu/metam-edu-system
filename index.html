@@ -271,12 +271,13 @@
         setTimeout(applyCustomizations, 2000);
       }
 
-      function applyCustomizations() {
+function applyCustomizations() {
         // 1. 필터 버튼 수정: "정규" → "신입", "기존"으로 분리
         const buttons = document.querySelectorAll('button');
+        let filterApplied = false;
+
         buttons.forEach(btn => {
           if (btn.textContent.trim() === '정규') {
-            // "정규" 버튼을 "신입"으로 변경
             const parent = btn.parentElement;
             if (parent && !parent.querySelector('[data-custom-added]')) {
               // 신입 버튼 생성
@@ -284,23 +285,15 @@
               newBtn.textContent = '신입';
               newBtn.setAttribute('data-custom-added', 'trainee');
               newBtn.onclick = () => {
-                // 모든 필터 버튼 비활성화
-                parent.querySelectorAll('button').forEach(b => {
-                  b.className = b.className.replace('bg-blue-600 text-white shadow-md', 'bg-white text-slate-600 hover:bg-slate-50 border border-stone-200');
-                });
-                // 현재 버튼 활성화
-                newBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white shadow-md';
+                applyTraineeFilter('신입');
               };
               
               // 기존 버튼 생성
               const existingBtn = btn.cloneNode(true);
               existingBtn.textContent = '기존';
-              existingBtn.setAttribute('data-custom-added', 'trainee');
+              existingBtn.setAttribute('data-custom-added', 'existing');
               existingBtn.onclick = () => {
-                parent.querySelectorAll('button').forEach(b => {
-                  b.className = b.className.replace('bg-blue-600 text-white shadow-md', 'bg-white text-slate-600 hover:bg-slate-50 border border-stone-200');
-                });
-                existingBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white shadow-md';
+                applyTraineeFilter('기존');
               };
               
               // 전체 버튼 다음에 신입, 기존 추가
@@ -315,6 +308,25 @@
             }
           }
         });
+      }
+
+      // 필터링 함수
+      function applyTraineeFilter(type) {
+        const rows = document.querySelectorAll('table tbody tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length > 0) {
+            // 테이블의 유형 칼럼 확인 (보통 첫 번째 칼럼)
+            const typeCell = cells[0]?.textContent.trim();
+            
+            if (typeCell === type) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          }
+        });
+      }
 
         // 2. 테이블에 만족도 컬럼 추가
         const tables = document.querySelectorAll('table');
