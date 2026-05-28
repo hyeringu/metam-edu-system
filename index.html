@@ -292,22 +292,38 @@
         });
       }
 
-      // ② 신입 버튼 추가
+      // ② 신입/기존 버튼 추가
       function addNewbieBtn() {
         var buttons = Array.from(document.querySelectorAll('button'));
         var allBtn = buttons.find(function(b) { return b.textContent.trim() === '전체'; });
         if (!allBtn) return;
         var parent = allBtn.parentElement;
         if (!parent) return;
-        var already = Array.from(parent.querySelectorAll('button')).some(function(b) {
-          return b.textContent.trim() === '신입';
-        });
-        if (already) return;
-        var newBtn = document.createElement('button');
-        newBtn.textContent = '신입';
-        newBtn.className = allBtn.className;
-        newBtn.setAttribute('data-custom', 'newbie');
-        allBtn.after(newBtn);
+        var parentBtns = Array.from(parent.querySelectorAll('button'));
+        var hasNewbie = parentBtns.some(function(b) { return b.textContent.trim() === '신입'; });
+        var hasExisting = parentBtns.some(function(b) { return b.textContent.trim() === '기존'; });
+
+        // 신입 버튼 추가 (전체 바로 다음)
+        if (!hasNewbie) {
+          var newbieBtn = document.createElement('button');
+          newbieBtn.textContent = '신입';
+          newbieBtn.className = allBtn.className;
+          newbieBtn.setAttribute('data-custom', 'newbie');
+          allBtn.after(newbieBtn);
+        }
+
+        // 기존 버튼 추가 (신입 다음)
+        if (!hasExisting) {
+          var newbieEl = parent.querySelector('[data-custom="newbie"]') ||
+            Array.from(parent.querySelectorAll('button')).find(function(b) { return b.textContent.trim() === '신입'; });
+          if (newbieEl) {
+            var existingBtn = document.createElement('button');
+            existingBtn.textContent = '기존';
+            existingBtn.className = allBtn.className;
+            existingBtn.setAttribute('data-custom', 'existing');
+            newbieEl.after(existingBtn);
+          }
+        }
       }
 
       // ③ 버튼 이벤트 연결
@@ -387,7 +403,7 @@
         parent.appendChild(btn);
       }
 
-      // ⑥ 엑셀 다운로드 (3개 시트: 교육기록 / 강사별 / 센터별)
+      // ⑥ 엑셀 다운로드 (3개 시트: 교육기록 / 강사별월별현황 / 센터별현황)
       function downloadExcel() {
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
@@ -403,36 +419,82 @@
           return;
         }
 
-        // 헤더 가져오기
         var thCells = Array.from(document.querySelectorAll('table thead th'));
         var headers = thCells.map(function(th) { return th.textContent.trim(); });
 
-        // 강사별 집계
-        var instrMap = {};
+        function pad(n) { return String(n).padStart(2,'0'); }
+        function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        // 강사 순서 고정: 김보경, 김현정, 나혜리, 구혜린
+        var instrOrder = ['김보경','김현정','나혜리','구혜린'];
+
+        // 강사별 월별 집계
+        // instrMonthMap[강사][월] = {교육횟수, 총시간, 총인원}
+        var instrMonthMap = {};
+        var allMonths = {};
         data.forEach(function(row) {
           var instr = row[3] || '미배정';
-          if (!instrMap[instr]) instrMap[instr] = { 교육횟수: 0, 총시간: 0, 총인원: 0 };
-          instrMap[instr].교육횟수++;
-          instrMap[instr].총시간 += parseFloat(row[8]) || 0;
-          instrMap[instr].총인원 += parseInt(row[7]) || 0;
+          // 날짜에서 월 추출 (row[0] = 날짜 예: 2026-05-27, row[1] = 월 예: 2026-05)
+          var month = row[1] || (row[0] ? row[0].substring(0,7) : '미상');
+          if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
+          if (!instrMonthMap[instr][month]) instrMonthMap[instr][month] = {교육횟수:0, 총시간:0, 총인원:0};
+          instrMonthMap[instr][month].교육횟수++;
+          instrMonthMap[instr][month].총시간 += parseFloat(row[8]) || 0;
+          instrMonthMap[instr][month].총인원 += parseInt(row[7]) || 0;
+          allMonths[month] = true;
+        });
+
+        // 월 목록 정렬
+        var months = Object.keys(allMonths).sort();
+
+        // 강사별현황 시트 데이터 생성
+        // 헤더: 강사 | 월 | 교육횟수 | 총시간(H) | 총인원(명)
+        var instrHeaders = ['강사', '월', '교육횟수', '총시간(H)', '총인원(명)'];
+        var instrData = [];
+
+        // 강사 순서: 지정 순서 먼저, 나머지는 뒤에
+        var allInstrs = Object.keys(instrMonthMap);
+        var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
+        allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
+
+        sortedInstrs.forEach(function(instr) {
+          var firstRow = true;
+          months.forEach(function(month) {
+            var d = instrMonthMap[instr][month];
+            if (d) {
+              instrData.push([firstRow ? instr : '', month, d.교육횟수, d.총시간, d.총인원]);
+              firstRow = false;
+            }
+          });
+          // 강사 소계 행
+          var total = {교육횟수:0, 총시간:0, 총인원:0};
+          months.forEach(function(month) {
+            if (instrMonthMap[instr][month]) {
+              total.교육횟수 += instrMonthMap[instr][month].교육횟수;
+              total.총시간 += instrMonthMap[instr][month].총시간;
+              total.총인원 += instrMonthMap[instr][month].총인원;
+            }
+          });
+          instrData.push(['[' + instr + ' 합계]', '전체', total.교육횟수, total.총시간, total.총인원]);
+          instrData.push(['', '', '', '', '']); // 구분 빈 행
         });
 
         // 센터별 집계
         var centerMap = {};
         data.forEach(function(row) {
           var center = row[2] || '미배정';
-          if (!centerMap[center]) centerMap[center] = { 교육횟수: 0, 총시간: 0, 총인원: 0 };
+          if (!centerMap[center]) centerMap[center] = {교육횟수:0, 총시간:0, 총인원:0};
           centerMap[center].교육횟수++;
           centerMap[center].총시간 += parseFloat(row[8]) || 0;
           centerMap[center].총인원 += parseInt(row[7]) || 0;
+        });
+        var centerData = Object.entries(centerMap).map(function(e) {
+          return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
         });
 
         var now = new Date();
         var ymd = now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate());
         var filename = 'MetaM_교육백업_' + ymd + '.xls';
-
-        function pad(n) { return String(n).padStart(2,'0'); }
-        function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         function makeSheet(name, sheetHeaders, sheetData) {
           var xml = '<Worksheet ss:Name="' + esc(name) + '"><Table>';
@@ -441,23 +503,17 @@
           }).join('') + '</Row>';
           sheetData.forEach(function(row) {
             xml += '<Row>' + row.map(function(cell) {
+              if (cell === '') return '<Cell><Data ss:Type="String"></Data></Cell>';
               var num = parseFloat(cell);
-              var isNum = !isNaN(num) && cell !== '';
+              var isNum = !isNaN(num) && String(cell).trim() !== '';
               return isNum
                 ? '<Cell><Data ss:Type="Number">' + num + '</Data></Cell>'
-                : '<Cell><Data ss:Type="String">' + esc(cell) + '</Data></Cell>';
+                : '<Cell><Data ss:Type="String">' + esc(String(cell)) + '</Data></Cell>';
             }).join('') + '</Row>';
           });
           xml += '</Table></Worksheet>';
           return xml;
         }
-
-        var instrData = Object.entries(instrMap).map(function(e) {
-          return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
-        });
-        var centerData = Object.entries(centerMap).map(function(e) {
-          return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
-        });
 
         var wb = '<?xml version="1.0" encoding="UTF-8"?>'
           + '<?mso-application progid="Excel.Sheet"?>'
@@ -466,9 +522,10 @@
           + 'xmlns:x="urn:schemas-microsoft-com:office:excel">'
           + '<Styles>'
           + '<Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style>'
+          + '<Style ss:ID="subtotal"><Font ss:Bold="1"/><Interior ss:Color="#FEF9C3" ss:Pattern="Solid"/></Style>'
           + '</Styles>'
           + makeSheet('교육기록', headers, data)
-          + makeSheet('강사별현황', ['강사','교육횟수','총시간(H)','총인원(명)'], instrData)
+          + makeSheet('강사별현황', instrHeaders, instrData)
           + makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
           + '</Workbook>';
 
