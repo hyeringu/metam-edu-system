@@ -241,6 +241,11 @@
       }).join('');
     }
     function mmClearLogs() {
+      // 구혜린(2024100098) 계정만 로그 초기화 가능
+      if (mmUser.id !== '2024100098') {
+        alert('감사로그 초기화는 관리자만 가능합니다.');
+        return;
+      }
       if (confirm('감사로그를 초기화하시겠습니까?')) {
         const cnt = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]').length;
         mmLog('로그 초기화', '초기화 전 ' + cnt + '개');
