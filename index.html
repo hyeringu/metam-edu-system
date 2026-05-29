@@ -189,7 +189,8 @@
           .then(function(data) {
             if (!Array.isArray(data)) return;
             data.forEach(function(item) {
-              var key = item.eduName + '_' + item.eduDate;
+              // 매칭 키: 강사명_날짜
+              var key = item.instructor + '_' + item.eduDate;
               satisfactionCache[key] = item.avg + '점 (' + item.count + '명)';
               saveSatisfaction(key, satisfactionCache[key]);
             });
@@ -257,7 +258,6 @@
         refreshSatisfactionCells();
       }
 
-      // 모달 안 교육유형 버튼은 건드리지 않음
       function hideReactFilterBtns() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
@@ -373,10 +373,10 @@
         var thead = table.querySelector('thead tr');
         if (!thead) return;
         var ths = Array.from(thead.querySelectorAll('th'));
-        var nameIdx = -1, dateIdx = -1, timeIdx = -1;
+        var instrIdx = -1, dateIdx = -1, timeIdx = -1;
         ths.forEach(function(th, i) {
           var t = th.textContent.trim();
-          if (t === '교육명') nameIdx = i;
+          if (t === '강사') instrIdx = i;
           if (t === '날짜') dateIdx = i;
           if (t === '시간') timeIdx = i;
         });
@@ -393,9 +393,10 @@
           if (row.querySelector('[data-sat-cell]')) return;
           var tds = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
           if (!tds[timeIdx]) return;
-          var eduName = nameIdx >= 0 && tds[nameIdx] ? tds[nameIdx].textContent.trim() : '';
+          // 매칭 키: 강사명_날짜
+          var instructor = instrIdx >= 0 && tds[instrIdx] ? tds[instrIdx].textContent.trim() : '';
           var eduDate = dateIdx >= 0 && tds[dateIdx] ? tds[dateIdx].textContent.trim() : '';
-          var key = eduName + '_' + eduDate;
+          var key = instructor + '_' + eduDate;
           var satTd = document.createElement('td');
           satTd.setAttribute('data-sat-cell', 'true');
           satTd.setAttribute('data-sat-key', key);
@@ -433,19 +434,13 @@
           }
         }
         if (!modal) return;
-
-        // 실수로 숨겨진 교육유형 버튼 컨테이너 복원
         modal.querySelectorAll('[data-react-hidden="true"]').forEach(function(el) {
           el.removeAttribute('data-react-hidden');
           el.style.removeProperty('display');
         });
-
-        // 인원/시간 input 자유 숫자 입력
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
-          inp.removeAttribute('min');
-          inp.removeAttribute('max');
-          inp.removeAttribute('step');
+          inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
           inp.setAttribute('data-free-input', 'true');
         });
         modal.querySelectorAll('input').forEach(function(inp) {
