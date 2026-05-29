@@ -276,7 +276,6 @@
       function applyCustomizations() {
         hideReactFilterBtns();
         ensureMyFilterBtns();
-        moveBackupBtn();
         fixSatisfactionCol();
         watchModalOpen();
         if (currentFilter) filterRows(currentFilter);
@@ -297,18 +296,32 @@
             }
           }
         });
+        // React 원본 강사 드롭다운도 숨김
+        document.querySelectorAll('select').forEach(function(sel) {
+          if (sel.id === 'my-instr-select') return;
+          var opts = Array.from(sel.options);
+          var isInstrSelect = opts.some(function(o) {
+            return o.text === '전체 강사' || o.text.includes('강사');
+          });
+          if (isInstrSelect && !sel.hasAttribute('data-react-hidden')) {
+            sel.setAttribute('data-react-hidden', 'true');
+            sel.style.setProperty('display', 'none', 'important');
+          }
+        });
       }
 
-      // ② 내 필터 버튼 + 강사 드롭다운
+      // ② 내 필터 버튼 + 강사 드롭다운 + 백업 버튼 한 줄 정렬
       function ensureMyFilterBtns() {
         if (document.getElementById('my-filter-btns')) return;
         var hiddenParent = document.querySelector('[data-react-hidden="true"]');
         if (!hiddenParent) return;
 
+        // 한 줄 컨테이너 (필터버튼 + 강사드롭다운 + 백업버튼 모두 포함)
         var container = document.createElement('div');
         container.id = 'my-filter-btns';
-        container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;';
+        container.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;';
 
+        // 필터 버튼 5개
         ['전체','신입','기존','특강','관리자'].forEach(function(label) {
           var btn = document.createElement('button');
           btn.textContent = label;
@@ -324,10 +337,10 @@
           container.appendChild(btn);
         });
 
-        // 강사 드롭다운
+        // 강사 드롭다운 (필터버튼과 같은 줄)
         var select = document.createElement('select');
         select.id = 'my-instr-select';
-        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;';
+        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;height:38px;';
         ['전체 강사','김보경','김현정','나혜리','구혜린'].forEach(function(name) {
           var opt = document.createElement('option');
           opt.value = name; opt.textContent = name;
@@ -339,13 +352,28 @@
           applyInstructorFilter();
         });
         container.appendChild(select);
+
+        // 백업 버튼 (같은 줄 오른쪽 끝)
+        var spacer = document.createElement('div');
+        spacer.style.cssText = 'flex:1;';
+        container.appendChild(spacer);
+
+        var backupBtn = document.createElement('button');
+        backupBtn.textContent = '📥 전체 백업 다운로드';
+        backupBtn.setAttribute('data-backup-btn', 'true');
+        backupBtn.style.cssText = 'padding:7px 14px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;height:38px;';
+        backupBtn.onmouseover = function() { backupBtn.style.background = '#047857'; };
+        backupBtn.onmouseout = function() { backupBtn.style.background = '#059669'; };
+        backupBtn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
+        container.appendChild(backupBtn);
+
         hiddenParent.parentNode.insertBefore(container, hiddenParent);
       }
 
       function getBtnStyle(active) {
         return active
-          ? 'padding:8px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.3);'
-          : 'padding:8px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;';
+          ? 'padding:7px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;height:38px;box-shadow:0 2px 8px rgba(37,99,235,0.3);'
+          : 'padding:7px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;height:38px;';
       }
 
       function updateMyBtns() {
@@ -415,65 +443,41 @@
         });
       }
 
-      // ⑥ 백업 버튼 - 검색창 오른쪽 상단에 위치
-      function moveBackupBtn() {
-        if (document.querySelector('[data-backup-btn]')) return;
-
-        // 검색창(input) 부모 컨테이너 찾기
-        var searchInput = document.querySelector('input[placeholder*="검색"]');
-        if (!searchInput) return;
-        var searchContainer = searchInput.closest('div');
-        if (!searchContainer) return;
-
-        // 검색창을 감싸는 상위 컨테이너에 flex 레이아웃 적용
-        var wrapper = searchContainer.parentElement;
-        if (!wrapper) return;
-
-        // 이미 백업 래퍼가 있으면 스킵
-        if (document.getElementById('backup-wrapper')) return;
-
-        // 백업 버튼 래퍼 생성
-        var backupWrapper = document.createElement('div');
-        backupWrapper.id = 'backup-wrapper';
-        backupWrapper.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
-
-        var btn = document.createElement('button');
-        btn.textContent = '📥 전체 백업 다운로드';
-        btn.setAttribute('data-backup-btn', 'true');
-        btn.style.cssText = 'padding:6px 14px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;';
-        btn.onmouseover = function() { btn.style.background = '#047857'; };
-        btn.onmouseout = function() { btn.style.background = '#059669'; };
-        btn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
-
-        backupWrapper.appendChild(btn);
-        // 검색창 컨테이너 바로 앞에 삽입
-        wrapper.insertBefore(backupWrapper, searchContainer);
-      }
-
-      // ⑦ 교육 입력 모달 감지 - + 교육 입력 버튼 클릭 시 select 수정
+      // ⑥ 교육 입력 모달 감지 - 클릭 후 select 수정
       function watchModalOpen() {
-        // + 교육 입력 버튼 찾기
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
-          if ((t.includes('교육 입력') || t.includes('교육입력') || t === '+') && !btn.hasAttribute('data-modal-watcher')) {
+          if ((t.includes('교육 입력') || t.includes('교육입력')) && !btn.hasAttribute('data-modal-watcher')) {
             btn.setAttribute('data-modal-watcher', 'true');
             btn.addEventListener('click', function() {
-              // 모달이 열릴 때까지 대기 후 select 수정
               setTimeout(fixModalSelects, 300);
-              setTimeout(fixModalSelects, 600);
-              setTimeout(fixModalSelects, 1000);
+              setTimeout(fixModalSelects, 700);
+              setTimeout(fixModalSelects, 1200);
             });
           }
         });
       }
 
+      // 모달 내 select: 신입/기존/특강/관리자 4가지만, 전체강사 드롭다운 제거
       function fixModalSelects() {
         var allowedTypes = ['신입', '기존', '특강', '관리자'];
         document.querySelectorAll('select').forEach(function(sel) {
+          // 내가 만든 강사 드롭다운은 건드리지 않음
           if (sel.id === 'my-instr-select') return;
-          if (sel.getAttribute('data-fixed') === 'true') return;
 
           var opts = Array.from(sel.options);
+
+          // 전체강사 드롭다운이면 숨김
+          var isInstrSelect = opts.some(function(o) {
+            return o.text === '전체 강사' || o.value === '전체 강사';
+          });
+          if (isInstrSelect) {
+            sel.style.setProperty('display', 'none', 'important');
+            return;
+          }
+
+          // 교육 유형 select 수정 (정규/전체 포함된 것)
+          if (sel.getAttribute('data-fixed') === 'true') return;
           var isTypeSelect = opts.some(function(o) {
             return ['신입','기존','특강','관리자','정규','전체'].indexOf(o.value) > -1 ||
                    ['신입','기존','특강','관리자','정규','전체'].indexOf(o.text) > -1;
@@ -490,7 +494,7 @@
         });
       }
 
-      // ⑧ 엑셀 다운로드
+      // ⑦ 엑셀 다운로드
       function downloadExcel() {
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
