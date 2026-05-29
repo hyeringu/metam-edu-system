@@ -358,6 +358,8 @@
 
       function ensureToolbar() {
         if (document.getElementById('mm-toolbar')) return;
+        // 교육 기록 탭(테이블 있는 탭)에서만 삽입
+        if (!document.querySelector('table')) return;
         var searchInput = document.querySelector('input[placeholder*="검색"]');
         if (!searchInput) return;
         var searchContainer = searchInput.closest('div');
@@ -532,17 +534,25 @@
         }
         if (!modal) return;
 
-        // 교육유형: 신입/기존/특강/관리자만
         var allowedTypes = ['신입', '기존', '특강', '관리자'];
         modal.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
           if (sel.getAttribute('data-modal-fixed') === 'true') return;
-          var opts = Array.from(sel.options);
-          var isTypeSelect = opts.some(function(o) {
-            return ['신입','기존','특강','관리자','정규','전체'].indexOf(o.value) > -1 ||
-                   ['신입','기존','특강','관리자','정규','전체'].indexOf(o.text) > -1;
-          });
+
+          var parentText = '';
+          var p = sel.parentElement;
+          for (var pi = 0; pi < 5 && p; pi++, p = p.parentElement) parentText += p.textContent;
+          var isTypeSelect = parentText.includes('교육 유형') || parentText.includes('교육유형');
+
+          if (!isTypeSelect) {
+            var opts = Array.from(sel.options);
+            isTypeSelect = opts.some(function(o) {
+              return ['신입','기존','특강','관리자','정규','전체'].indexOf(o.value) > -1 ||
+                     ['신입','기존','특강','관리자','정규','전체'].indexOf(o.text) > -1;
+            });
+          }
           if (!isTypeSelect) return;
+
           sel.innerHTML = '';
           allowedTypes.forEach(function(type) {
             var opt = document.createElement('option');
@@ -552,7 +562,6 @@
           sel.setAttribute('data-modal-fixed', 'true');
         });
 
-        // 인원/시간 input: 제한 해제
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           inp.removeAttribute('min');
