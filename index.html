@@ -265,10 +265,67 @@
         ensureToolbar();
         watchModalOpen();
         fixModalInputs();
+        fixInstructorPage();
+        fixCenterPage();
         if (currentFilter) filterRows(currentFilter);
         else showAll();
         applyInstructorFilter();
         updateMyBtns();
+      }
+
+      // 강사별 현황 페이지 수정
+      function fixInstructorPage() {
+        // 1. 제목 텍스트 변경
+        document.querySelectorAll('h4').forEach(function(el) {
+          if (el.textContent.trim() === '진행한 센터별 만족도 평균' && !el.getAttribute('data-fixed')) {
+            el.textContent = '진행한 센터 교육 현황';
+            el.setAttribute('data-fixed', 'true');
+          }
+        });
+
+        // 2. ★ 과 만족도 숫자 숨기기
+        document.querySelectorAll('span.text-lg.font-bold.text-blue-600').forEach(function(el) {
+          if (el.getAttribute('data-sat-hidden')) return;
+          var t = el.textContent.trim();
+          if (t === '★' || t.match(/^\d+\.\d+$/)) {
+            el.style.setProperty('display', 'none', 'important');
+            el.setAttribute('data-sat-hidden', 'true');
+          }
+        });
+
+        // 3. 센터명 글씨 크게
+        document.querySelectorAll('span.text-sm.font-medium.text-slate-700').forEach(function(el) {
+          if (el.getAttribute('data-size-fixed')) return;
+          if (el.textContent.trim().match(/^[A-Z]{2,4}[0-9]*$/)) {
+            el.style.fontSize = '1rem';
+            el.style.fontWeight = '700';
+            el.setAttribute('data-size-fixed', 'true');
+          }
+        });
+      }
+
+      // 센터별 교육 현황 클릭 시 만족도 숨기기
+      function fixCenterPage() {
+        // 센터 상세에서 만족도 관련 요소 숨기기
+        document.querySelectorAll('span.text-lg.font-bold.text-blue-600').forEach(function(el) {
+          if (el.getAttribute('data-sat-hidden')) return;
+          var t = el.textContent.trim();
+          if (t === '★' || t.match(/^\d+\.\d+$/)) {
+            el.style.setProperty('display', 'none', 'important');
+            el.setAttribute('data-sat-hidden', 'true');
+          }
+        });
+        // "만족도" 텍스트 포함 요소 숨기기
+        document.querySelectorAll('h3, h4, p, span').forEach(function(el) {
+          if (el.getAttribute('data-sat-hidden')) return;
+          if (el.children.length === 0 && el.textContent.trim().includes('만족도')) {
+            var container = el.closest('div');
+            if (container) {
+              container.style.setProperty('display', 'none', 'important');
+              container.setAttribute('data-sat-hidden', 'true');
+            }
+          }
+        });
       }
 
       // ① React 원본 필터 버튼 숨김 (모달 안 교육유형 버튼은 제외)
