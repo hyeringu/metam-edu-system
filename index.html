@@ -277,13 +277,15 @@
         hideReactFilterBtns();
         ensureMyFilterBtns();
         addBackupBtn();
-        addSatisfactionCol();
+        fixSatisfactionCol();
+        fixInputModal();
         if (currentFilter) filterRows(currentFilter);
         else showAll();
         applyInstructorFilter();
+        updateMyBtns();
       }
 
-      // ① React 원본 필터 버튼 컨테이너 숨김
+      // ① React 원본 필터 버튼 숨김
       function hideReactFilterBtns() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
@@ -297,7 +299,7 @@
         });
       }
 
-      // ② 내 필터 버튼 + 강사 드롭다운 생성
+      // ② 내 필터 버튼 + 강사 드롭다운
       function ensureMyFilterBtns() {
         if (document.getElementById('my-filter-btns')) return;
         var hiddenParent = document.querySelector('[data-react-hidden="true"]');
@@ -307,9 +309,7 @@
         container.id = 'my-filter-btns';
         container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;';
 
-        // 필터 버튼 5개
-        var filterLabels = ['전체','신입','기존','특강','관리자'];
-        filterLabels.forEach(function(label) {
+        ['전체','신입','기존','특강','관리자'].forEach(function(label) {
           var btn = document.createElement('button');
           btn.textContent = label;
           btn.setAttribute('data-my-btn', 'true');
@@ -328,8 +328,7 @@
         var select = document.createElement('select');
         select.id = 'my-instr-select';
         select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;';
-        var instructors = ['전체 강사','김보경','김현정','나혜리','구혜린'];
-        instructors.forEach(function(name) {
+        ['전체 강사','김보경','김현정','나혜리','구혜린'].forEach(function(name) {
           var opt = document.createElement('option');
           opt.value = name; opt.textContent = name;
           select.appendChild(opt);
@@ -340,7 +339,6 @@
           applyInstructorFilter();
         });
         container.appendChild(select);
-
         hiddenParent.parentNode.insertBefore(container, hiddenParent);
       }
 
@@ -355,31 +353,31 @@
         if (!container) return;
         Array.from(container.querySelectorAll('button[data-my-btn]')).forEach(function(btn) {
           var t = btn.textContent.trim();
-          var isActive = (currentFilter && t === currentFilter) || (!currentFilter && t === '전체');
+          var isActive = currentFilter ? t === currentFilter : t === '전체';
           btn.style.cssText = getBtnStyle(isActive);
         });
       }
 
-      // ③ 강사 필터 적용
+      // ③ 강사 필터
       function applyInstructorFilter() {
         if (currentInstructor === '전체 강사') return;
         document.querySelectorAll('table tbody tr').forEach(function(row) {
           if (row.style.display === 'none') return;
-          var cells = row.querySelectorAll('td');
-          var hasInstr = false;
-          cells.forEach(function(cell) {
-            if (cell.textContent.trim() === currentInstructor) hasInstr = true;
+          var matched = false;
+          row.querySelectorAll('td').forEach(function(cell) {
+            if (cell.textContent.trim() === currentInstructor) matched = true;
           });
-          if (!hasInstr) row.style.display = 'none';
+          if (!matched) row.style.display = 'none';
         });
       }
 
       // ④ 행 필터링
       function filterRows(type) {
         document.querySelectorAll('table tbody tr').forEach(function(row) {
-          var cells = row.querySelectorAll('td');
           var matched = false;
-          cells.forEach(function(cell) { if (cell.textContent.trim() === type) matched = true; });
+          row.querySelectorAll('td').forEach(function(cell) {
+            if (cell.textContent.trim() === type) matched = true;
+          });
           row.style.display = matched ? '' : 'none';
         });
       }
@@ -388,41 +386,103 @@
         document.querySelectorAll('table tbody tr').forEach(function(row) { row.style.display = ''; });
       }
 
-      // ⑤ 만족도 컬럼 추가 (시간과 관리 사이)
-      function addSatisfactionCol() {
+      // ⑤ 만족도 컬럼 수정
+      // React가 렌더링한 테이블에서 실제 satisfaction 데이터 찾아서 표시
+      function fixSatisfactionCol() {
         var table = document.querySelector('table');
         if (!table) return;
         var thead = table.querySelector('thead tr');
         if (!thead) return;
         var ths = Array.from(thead.querySelectorAll('th'));
-        // 이미 만족도 헤더 있으면 스킵
-        if (ths.some(function(th) { return th.textContent.trim() === '만족도'; })) return;
-        // '시간' 헤더 찾기
+
+        // 이미 만족도 헤더 있으면 데이터만 업데이트
+        var satThIdx = -1;
+        ths.forEach(function(th, i) { if (th.textContent.trim() === '만족도') satThIdx = i; });
+
+        // 시간 헤더 위치 찾기
         var timeIdx = -1;
         ths.forEach(function(th, i) { if (th.textContent.trim() === '시간') timeIdx = i; });
         if (timeIdx < 0) return;
-        // 만족도 헤더 삽입 (시간 다음)
-        var satTh = document.createElement('th');
-        satTh.textContent = '만족도';
-        satTh.setAttribute('data-sat-col', 'true');
-        satTh.style.cssText = ths[timeIdx].style.cssText;
-        satTh.className = ths[timeIdx].className;
-        ths[timeIdx].after(satTh);
-        // 각 행에 만족도 셀 추가
+
+        // 만족도 헤더가 없으면 추가
+        if (satThIdx < 0) {
+          var satTh = document.createElement('th');
+          satTh.textContent = '만족도';
+          satTh.setAttribute('data-sat-col', 'true');
+          satTh.className = ths[timeIdx].className;
+          ths[timeIdx].after(satTh);
+          satThIdx = timeIdx + 1;
+        }
+
+        // 각 행에 만족도 셀 추가 또는 업데이트
         Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
-          var tds = row.querySelectorAll('td');
-          if (tds.length > timeIdx && !row.querySelector('[data-sat-cell]')) {
+          var tds = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
+          if (tds.length === 0) return;
+
+          // 기존 만족도 셀 확인
+          var existingSat = row.querySelector('[data-sat-cell]');
+
+          // React 테이블의 실제 데이터에서 만족도 찾기
+          // React가 숨겨진 data 속성이나 추가 td로 satisfaction을 넘길 수 있음
+          // → 모든 td 텍스트를 보고 숫자 패턴(1~5 또는 소수점) 중 만족도로 보이는 값 찾기
+          // → 단, 인원/시간과 겹치지 않도록 관리 td(아이콘) 다음 위치 확인
+          var satValue = '-';
+
+          // React 컴포넌트가 tr에 data 속성으로 satisfaction을 넘기는 경우
+          var rowData = row.getAttribute('data-satisfaction') ||
+                        row.getAttribute('data-sat') ||
+                        row.getAttribute('satisfaction');
+          if (rowData) satValue = rowData;
+
+          if (!existingSat) {
             var satTd = document.createElement('td');
             satTd.setAttribute('data-sat-cell', 'true');
-            satTd.textContent = '-';
-            satTd.style.cssText = tds[timeIdx].style.cssText;
-            satTd.className = tds[timeIdx].className;
-            tds[timeIdx].after(satTd);
+            satTd.textContent = satValue;
+            satTd.className = tds[timeIdx] ? tds[timeIdx].className : '';
+            satTd.style.cssText = 'text-align:center;';
+            if (tds[timeIdx]) tds[timeIdx].after(satTd);
+          } else {
+            if (existingSat.textContent === '-' && satValue !== '-') {
+              existingSat.textContent = satValue;
+            }
           }
         });
       }
 
-      // ⑥ 백업 버튼 추가
+      // ⑥ 교육 입력 모달 - 유형 select 옵션 수정
+      // React 모달이 열릴때 '정규' 옵션을 '신입'/'기존'으로 교체
+      function fixInputModal() {
+        // 모달 내 select 요소 찾기
+        var selects = document.querySelectorAll('select');
+        selects.forEach(function(sel) {
+          // 강사 드롭다운은 건드리지 않음
+          if (sel.id === 'my-instr-select') return;
+
+          var opts = Array.from(sel.options);
+          var hasRegular = opts.some(function(o) { return o.value === '정규' || o.text === '정규'; });
+          var hasNewbie = opts.some(function(o) { return o.value === '신입' || o.text === '신입'; });
+
+          if (hasRegular && !hasNewbie) {
+            // '정규' 옵션을 찾아서 제거하고 신입/기존 추가
+            var regularOpt = opts.find(function(o) { return o.value === '정규' || o.text === '정규'; });
+            if (regularOpt) {
+              var insertBefore = regularOpt.nextSibling;
+              // 신입 옵션 추가
+              var newbieOpt = document.createElement('option');
+              newbieOpt.value = '신입'; newbieOpt.text = '신입';
+              sel.insertBefore(newbieOpt, regularOpt);
+              // 기존 옵션 추가
+              var existingOpt = document.createElement('option');
+              existingOpt.value = '기존'; existingOpt.text = '기존';
+              sel.insertBefore(existingOpt, regularOpt);
+              // 정규 옵션 제거
+              sel.removeChild(regularOpt);
+            }
+          }
+        });
+      }
+
+      // ⑦ 백업 버튼
       function addBackupBtn() {
         if (document.querySelector('[data-backup-btn]')) return;
         var recordHeader = Array.from(document.querySelectorAll('h2')).find(function(h) {
@@ -439,9 +499,8 @@
         recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
-      // ⑦ 엑셀 다운로드
+      // ⑧ 엑셀 다운로드
       function downloadExcel() {
-        // 만족도 셀 제외하고 원본 데이터만 수집
         var rows = Array.from(document.querySelectorAll('table tbody tr'));
         var data = [];
         rows.forEach(function(row) {
@@ -455,7 +514,6 @@
         function pad(n) { return String(n).padStart(2,'0'); }
         function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-        // 날짜 패턴 자동 감지
         function getDateFromRow(row) {
           for (var i = 0; i < row.length; i++) {
             var m = String(row[i]).match(/(\d{4})-(\d{2})-\d{2}/);
@@ -464,13 +522,11 @@
           return { key: '미상', label: '미상' };
         }
 
-        // 헤더에서 컬럼 인덱스 자동 탐색
         var instrIdx = Math.max(headers.indexOf('강사'), 0);
         var timeIdx = Math.max(headers.indexOf('시간'), 0);
         var personIdx = Math.max(headers.indexOf('인원'), 0);
         var centerIdx = Math.max(headers.indexOf('센터'), 0);
 
-        // 강사별 월별 집계
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
         var instrMonthMap = {};
         var allMonths = {};
@@ -491,7 +547,6 @@
         var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
         allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
 
-        // 강사별현황 가로 레이아웃
         var instrSheetData = [];
         var nameRow = [''];
         sortedInstrs.forEach(function(instr) { nameRow.push(instr); nameRow.push(''); nameRow.push(''); nameRow.push(''); });
@@ -524,7 +579,6 @@
         });
         instrSheetData.push(totalRow);
 
-        // 센터별 집계
         var centerMap = {};
         data.forEach(function(row) {
           var c = row[centerIdx] || '미배정';
