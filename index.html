@@ -304,26 +304,29 @@
         });
       }
 
-      // 센터별 교육 현황 클릭 시 만족도 숨기기
+      // 센터별 교육 현황 클릭 시 만족도 컬럼 숨기기
       function fixCenterPage() {
-        // 센터 상세에서 만족도 관련 요소 숨기기
-        document.querySelectorAll('span.text-lg.font-bold.text-blue-600').forEach(function(el) {
-          if (el.getAttribute('data-sat-hidden')) return;
-          var t = el.textContent.trim();
-          if (t === '★' || t.match(/^\d+\.\d+$/)) {
-            el.style.setProperty('display', 'none', 'important');
-            el.setAttribute('data-sat-hidden', 'true');
-          }
-        });
-        // "만족도" 텍스트 포함 요소 숨기기
-        document.querySelectorAll('h3, h4, p, span').forEach(function(el) {
-          if (el.getAttribute('data-sat-hidden')) return;
-          if (el.children.length === 0 && el.textContent.trim().includes('만족도')) {
-            var container = el.closest('div');
-            if (container) {
-              container.style.setProperty('display', 'none', 'important');
-              container.setAttribute('data-sat-hidden', 'true');
-            }
+        document.querySelectorAll('th').forEach(function(th) {
+          if (th.textContent.trim() !== '만족도') return;
+          if (th.getAttribute('data-sat-hidden')) return;
+
+          // 헤더 숨기기
+          th.style.setProperty('display', 'none', 'important');
+          th.setAttribute('data-sat-hidden', 'true');
+
+          // 해당 컬럼 인덱스
+          var idx = Array.from(th.parentElement.children).indexOf(th);
+
+          // 같은 테이블 모든 TD 숨기기
+          var table = th.closest('table');
+          if (table) {
+            table.querySelectorAll('tbody tr').forEach(function(row) {
+              var td = row.children[idx];
+              if (td) {
+                td.style.setProperty('display', 'none', 'important');
+                td.setAttribute('data-sat-hidden', 'true');
+              }
+            });
           }
         });
       }
