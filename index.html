@@ -10,76 +10,36 @@
   </head>
   <body>
     <div id="root"></div>
-
-    <!-- ── 상단 툴바 ─────────────────────────────────────── -->
-    <div id="mm-bar" style="
-      position:fixed; top:10px; right:14px; z-index:9000;
-      display:flex; align-items:center; gap:6px;
-      font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
-    ">
-      <span id="mm-user" style="
-        background:rgba(30,41,59,0.95); border:1px solid #334155;
-        color:#94a3b8; padding:5px 14px; border-radius:20px; font-size:13px;
-      "></span>
-      <button onclick="mmOpenPw()" title="비밀번호 변경" style="
-        background:rgba(30,41,59,0.95); border:1px solid #334155;
-        color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;
-      ">🔑</button>
-      <button onclick="mmOpenAudit()" title="감사 로그" style="
-        background:rgba(30,41,59,0.95); border:1px solid #334155;
-        color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;
-      ">📋</button>
-      <button onclick="mmLogout()" style="
-        background:rgba(30,41,59,0.95); border:1px solid #334155;
-        color:#ef4444; padding:5px 12px; border-radius:8px; font-size:13px;
-        font-weight:600; cursor:pointer;
-      ">로그아웃</button>
+    <div id="mm-bar" style="position:fixed; top:10px; right:14px; z-index:9000; display:flex; align-items:center; gap:6px; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <span id="mm-user" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#94a3b8; padding:5px 14px; border-radius:20px; font-size:13px;"></span>
+      <button onclick="mmOpenPw()" title="비밀번호 변경" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">🔑</button>
+      <button onclick="mmOpenAudit()" title="감사 로그" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">📋</button>
+      <button onclick="mmLogout()" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#ef4444; padding:5px 12px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">로그아웃</button>
     </div>
-
-    <!-- ── 비밀번호 변경 모달 ─────────────────────────────── -->
-    <div id="mm-pw-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
-      z-index:9100; align-items:center; justify-content:center;
-      font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
-      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px;
-        padding:36px 32px; width:320px;">
+    <div id="mm-pw-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:36px 32px; width:320px;">
         <h3 style="color:#f1f5f9; margin:0 0 6px; font-size:17px;">비밀번호 변경</h3>
         <p id="mm-pw-desc" style="color:#94a3b8; font-size:13px; margin:0 0 20px;"></p>
-        <div id="mm-pw-err" style="display:none; background:#7f1d1d; border:1px solid #dc2626;
-          color:#fca5a5; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:12px;"></div>
-        <input id="mm-pw-new" type="password" placeholder="새 비밀번호" style="
-          width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155;
-          border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:10px;">
-        <input id="mm-pw-confirm" type="password" placeholder="새 비밀번호 확인" style="
-          width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155;
-          border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:20px;">
+        <div id="mm-pw-err" style="display:none; background:#7f1d1d; border:1px solid #dc2626; color:#fca5a5; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:12px;"></div>
+        <input id="mm-pw-new" type="password" placeholder="새 비밀번호" style="width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:10px;">
+        <input id="mm-pw-confirm" type="password" placeholder="새 비밀번호 확인" style="width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:20px;">
         <div style="display:flex; gap:8px;">
-          <button id="mm-pw-cancel" style="flex:1; padding:10px; background:#334155;
-            color:#f1f5f9; border:none; border-radius:8px; font-size:14px; cursor:pointer;">취소</button>
-          <button onclick="mmSavePw()" style="flex:2; padding:10px; background:#3b82f6;
-            color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">변경하기</button>
+          <button id="mm-pw-cancel" style="flex:1; padding:10px; background:#334155; color:#f1f5f9; border:none; border-radius:8px; font-size:14px; cursor:pointer;">취소</button>
+          <button onclick="mmSavePw()" style="flex:2; padding:10px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">변경하기</button>
         </div>
       </div>
     </div>
-
-    <!-- ── 감사 로그 모달 ─────────────────────────────────── -->
-    <div id="mm-audit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8);
-      z-index:9100; align-items:center; justify-content:center;
-      font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
-      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px;
-        width:780px; max-width:95vw; max-height:82vh; display:flex; flex-direction:column; overflow:hidden;">
+    <div id="mm-audit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; width:780px; max-width:95vw; max-height:82vh; display:flex; flex-direction:column; overflow:hidden;">
         <div style="padding:22px 26px 0; border-bottom:1px solid #334155; flex-shrink:0;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
             <h3 style="color:#f1f5f9; margin:0; font-size:17px;">🔐 감사 로그</h3>
-            <button onclick="mmCloseAudit()" style="background:#334155; border:none;
-              color:#94a3b8; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:13px;">닫기</button>
+            <button onclick="mmCloseAudit()" style="background:#334155; border:none; color:#94a3b8; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:13px;">닫기</button>
           </div>
           <div id="mm-audit-pw-sec" style="margin-bottom:14px;">
             <div style="display:flex; gap:8px;">
-              <input id="mm-audit-pw" type="password" placeholder="관리자 비밀번호" style="
-                flex:1; padding:9px 12px; background:#0f172a; border:1px solid #334155;
-                border-radius:8px; color:#f1f5f9; font-size:14px; outline:none;">
-              <button onclick="mmCheckAuditPw()" style="padding:9px 16px; background:#3b82f6;
-                color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer;">확인</button>
+              <input id="mm-audit-pw" type="password" placeholder="관리자 비밀번호" style="flex:1; padding:9px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none;">
+              <button onclick="mmCheckAuditPw()" style="padding:9px 16px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer;">확인</button>
             </div>
             <div id="mm-audit-pw-err" style="display:none; color:#ef4444; font-size:12px; margin-top:6px;"></div>
           </div>
@@ -87,8 +47,7 @@
         <div id="mm-audit-content" style="display:none; flex:1; overflow-y:auto; padding:0 26px 22px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 10px;">
             <span id="mm-audit-count" style="color:#64748b; font-size:13px;"></span>
-            <button onclick="mmClearLogs()" style="background:#7f1d1d; border:none; color:#fca5a5;
-              padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px;">로그 초기화</button>
+            <button onclick="mmClearLogs()" style="background:#7f1d1d; border:none; color:#fca5a5; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px;">로그 초기화</button>
           </div>
           <table style="width:100%; border-collapse:collapse; font-size:13px;">
             <thead>
@@ -110,31 +69,18 @@
     <script>
     const PFX = 'metamEdu_';
     const AUDIT_PW = '7256!';
-
     let mmUser = null;
-    try {
-      mmUser = JSON.parse(localStorage.getItem(PFX + 'currentUser') || 'null');
-    } catch(e) {}
-
-    if (!mmUser) {
-      location.replace('./login.html');
-    } else {
-      document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')';
-    }
-
+    try { mmUser = JSON.parse(localStorage.getItem(PFX + 'currentUser') || 'null'); } catch(e) {}
+    if (!mmUser) { location.replace('./login.html'); } else { document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')'; }
     function mmLog(action, detail) {
       if (!mmUser) return;
       try {
         const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
-        logs.unshift({
-          ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-          id: mmUser.id, name: mmUser.name, action, detail: detail || ''
-        });
+        logs.unshift({ ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), id: mmUser.id, name: mmUser.name, action, detail: detail || '' });
         if (logs.length > 500) logs.splice(500);
         localStorage.setItem(PFX + 'auditLogs', JSON.stringify(logs));
       } catch(e) {}
     }
-
     const _origAlert = window.alert;
     window.alert = function(msg) {
       if (mmUser && typeof msg === 'string') {
@@ -144,16 +90,12 @@
       }
       return _origAlert.apply(this, arguments);
     };
-
     function mmLogout() {
       mmLog('로그아웃');
       localStorage.removeItem(PFX + 'currentUser');
-      if (localStorage.getItem(PFX + 'autoLogin') !== '1') {
-        localStorage.removeItem(PFX + 'autoLoginUser');
-      }
+      if (localStorage.getItem(PFX + 'autoLogin') !== '1') localStorage.removeItem(PFX + 'autoLoginUser');
       location.replace('./login.html');
     }
-
     function mmOpenPw() {
       document.getElementById('mm-pw-desc').textContent = '새 비밀번호를 입력하세요.';
       document.getElementById('mm-pw-new').value = '';
@@ -162,9 +104,7 @@
       document.getElementById('mm-pw-cancel').style.display = '';
       document.getElementById('mm-pw-modal').style.display = 'flex';
     }
-    document.getElementById('mm-pw-cancel').addEventListener('click', () => {
-      document.getElementById('mm-pw-modal').style.display = 'none';
-    });
+    document.getElementById('mm-pw-cancel').addEventListener('click', () => { document.getElementById('mm-pw-modal').style.display = 'none'; });
     function mmSavePw() {
       const np = document.getElementById('mm-pw-new').value;
       const cp = document.getElementById('mm-pw-confirm').value;
@@ -177,7 +117,6 @@
       document.getElementById('mm-pw-modal').style.display = 'none';
       alert('비밀번호가 변경되었습니다!');
     }
-
     function mmOpenAudit() {
       document.getElementById('mm-audit-pw-sec').style.display = 'block';
       document.getElementById('mm-audit-content').style.display = 'none';
@@ -186,9 +125,7 @@
       document.getElementById('mm-audit-modal').style.display = 'flex';
       mmLog('감사로그 열기 시도');
     }
-    function mmCloseAudit() {
-      document.getElementById('mm-audit-modal').style.display = 'none';
-    }
+    function mmCloseAudit() { document.getElementById('mm-audit-modal').style.display = 'none'; }
     function mmCheckAuditPw() {
       const pw = document.getElementById('mm-audit-pw').value;
       if (pw === AUDIT_PW) {
@@ -202,38 +139,21 @@
         mmLog('감사로그 비밀번호 오류');
       }
     }
-    document.getElementById('mm-audit-pw').addEventListener('keydown', e => {
-      if (e.key === 'Enter') mmCheckAuditPw();
-    });
+    document.getElementById('mm-audit-pw').addEventListener('keydown', e => { if (e.key === 'Enter') mmCheckAuditPw(); });
     function mmRenderLogs() {
       const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
       const tbody = document.getElementById('mm-audit-tbody');
       document.getElementById('mm-audit-count').textContent = '총 ' + logs.length + '개의 로그';
-      if (logs.length === 0) {
-        tbody.innerHTML = '';
-        document.getElementById('mm-audit-empty').style.display = 'block';
-        return;
-      }
+      if (logs.length === 0) { tbody.innerHTML = ''; document.getElementById('mm-audit-empty').style.display = 'block'; return; }
       document.getElementById('mm-audit-empty').style.display = 'none';
-      const colors = { '로그인':'#22c55e','자동 로그인':'#10b981','로그아웃':'#f59e0b',
-        '비밀번호 변경':'#3b82f6','교육 추가':'#10b981','교육 수정':'#f59e0b','교육 삭제':'#ef4444',
-        '감사로그 열기 성공':'#06b6d4','감사로그 열기 시도':'#a78bfa','감사로그 비밀번호 오류':'#dc2626','로그 초기화':'#dc2626' };
+      const colors = { '로그인':'#22c55e','자동 로그인':'#10b981','로그아웃':'#f59e0b','비밀번호 변경':'#3b82f6','교육 추가':'#10b981','교육 수정':'#f59e0b','교육 삭제':'#ef4444','감사로그 열기 성공':'#06b6d4','감사로그 열기 시도':'#a78bfa','감사로그 비밀번호 오류':'#dc2626','로그 초기화':'#dc2626' };
       tbody.innerHTML = logs.map((log, i) => {
         const c = Object.entries(colors).find(([k]) => log.action.includes(k))?.[1] || '#94a3b8';
-        return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '">'
-          + '<td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + log.ts + '</td>'
-          + '<td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + log.id + '</td>'
-          + '<td style="padding:8px; color:#e2e8f0; font-weight:500;">' + log.name + '</td>'
-          + '<td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + log.action + '</span></td>'
-          + '<td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td>'
-          + '</tr>';
+        return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '"><td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + log.ts + '</td><td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + log.id + '</td><td style="padding:8px; color:#e2e8f0; font-weight:500;">' + log.name + '</td><td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + log.action + '</span></td><td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td></tr>';
       }).join('');
     }
     function mmClearLogs() {
-      if (mmUser.id !== '2024100098') {
-        alert('감사로그 초기화는 관리자만 가능합니다.');
-        return;
-      }
+      if (mmUser.id !== '2024100098') { alert('감사로그 초기화는 관리자만 가능합니다.'); return; }
       if (confirm('감사로그를 초기화하시겠습니까?')) {
         const cnt = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]').length;
         mmLog('로그 초기화', '초기화 전 ' + cnt + '개');
@@ -247,7 +167,6 @@
     (function() {
       var currentFilter = null;
       var currentInstructor = '전체 강사';
-
       var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_UgGddGsbkrdQ0_H0G5sVluZSCg_g5WhFA07sAZxWPdhlAFg0akERZIVku1BDT2xZ/exec';
       var satisfactionCache = {};
 
@@ -257,16 +176,13 @@
           Object.keys(stored).forEach(function(k) { satisfactionCache[k] = stored[k]; });
         } catch(e) {}
       }
-
       function saveSatisfaction(key, value) {
         try {
           var stored = JSON.parse(localStorage.getItem('metamEdu_satisfaction') || '{}');
-          if (value && value !== '-') stored[key] = value;
-          else delete stored[key];
+          if (value && value !== '-') stored[key] = value; else delete stored[key];
           localStorage.setItem('metamEdu_satisfaction', JSON.stringify(stored));
         } catch(e) {}
       }
-
       function loadSatisfactionData() {
         fetch(APPS_SCRIPT_URL + '?action=getSummary')
           .then(function(res) { return res.json(); })
@@ -281,7 +197,6 @@
           })
           .catch(function(err) { console.warn('만족도 데이터 로드 실패:', err); });
       }
-
       function refreshSatisfactionCells() {
         document.querySelectorAll('[data-sat-cell]').forEach(function(cell) {
           var key = cell.getAttribute('data-sat-key');
@@ -292,7 +207,6 @@
           }
         });
       }
-
       function makeSatCellEditable(satTd, key) {
         satTd.style.cursor = 'pointer';
         satTd.title = '클릭하여 만족도 직접 입력';
@@ -337,17 +251,24 @@
         fixSatisfactionCol();
         watchModalOpen();
         fixModalInputs();
-        if (currentFilter) filterRows(currentFilter);
-        else showAll();
+        if (currentFilter) filterRows(currentFilter); else showAll();
         applyInstructorFilter();
         updateMyBtns();
         refreshSatisfactionCells();
       }
 
+      // 모달 안 교육유형 버튼은 건드리지 않음
       function hideReactFilterBtns() {
         document.querySelectorAll('button').forEach(function(btn) {
           var t = btn.textContent.trim();
           if ((t === '전체' || t === '정규' || t === '특강' || t === '관리자') && !btn.hasAttribute('data-my-btn')) {
+            var p = btn.parentElement;
+            var inModal = false;
+            while (p) {
+              if (p.textContent && p.textContent.includes('새 교육 입력')) { inModal = true; break; }
+              p = p.parentElement;
+            }
+            if (inModal) return;
             var parent = btn.parentElement;
             if (parent && !parent.hasAttribute('data-react-hidden')) {
               parent.setAttribute('data-react-hidden', 'true');
@@ -366,15 +287,12 @@
         if (!searchContainer) return;
         var wrapper = searchContainer.parentElement;
         if (!wrapper) return;
-
         var toolbar = document.createElement('div');
         toolbar.id = 'mm-toolbar';
         toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;';
-
         var filterGroup = document.createElement('div');
         filterGroup.id = 'my-filter-btns';
         filterGroup.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
-
         ['전체','신입','기존','특강','관리자'].forEach(function(label) {
           var btn = document.createElement('button');
           btn.textContent = label;
@@ -389,7 +307,6 @@
           });
           filterGroup.appendChild(btn);
         });
-
         var select = document.createElement('select');
         select.id = 'my-instr-select';
         select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;height:38px;';
@@ -404,7 +321,6 @@
           applyInstructorFilter();
         });
         filterGroup.appendChild(select);
-
         var backupBtn = document.createElement('button');
         backupBtn.textContent = '📥 전체 백업 다운로드';
         backupBtn.setAttribute('data-backup-btn', 'true');
@@ -412,7 +328,6 @@
         backupBtn.onmouseover = function() { backupBtn.style.background = '#047857'; };
         backupBtn.onmouseout = function() { backupBtn.style.background = '#059669'; };
         backupBtn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
-
         toolbar.appendChild(filterGroup);
         toolbar.appendChild(backupBtn);
         wrapper.insertBefore(toolbar, searchContainer);
@@ -423,7 +338,6 @@
           ? 'padding:7px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;height:38px;box-shadow:0 2px 8px rgba(37,99,235,0.3);'
           : 'padding:7px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;height:38px;';
       }
-
       function updateMyBtns() {
         var container = document.getElementById('my-filter-btns');
         if (!container) return;
@@ -433,29 +347,22 @@
           btn.style.cssText = getBtnStyle(isActive);
         });
       }
-
       function applyInstructorFilter() {
         if (currentInstructor === '전체 강사') return;
         document.querySelectorAll('table tbody tr').forEach(function(row) {
           if (row.style.display === 'none') return;
           var matched = false;
-          row.querySelectorAll('td').forEach(function(cell) {
-            if (cell.textContent.trim() === currentInstructor) matched = true;
-          });
+          row.querySelectorAll('td').forEach(function(cell) { if (cell.textContent.trim() === currentInstructor) matched = true; });
           if (!matched) row.style.display = 'none';
         });
       }
-
       function filterRows(type) {
         document.querySelectorAll('table tbody tr').forEach(function(row) {
           var matched = false;
-          row.querySelectorAll('td').forEach(function(cell) {
-            if (cell.textContent.trim() === type) matched = true;
-          });
+          row.querySelectorAll('td').forEach(function(cell) { if (cell.textContent.trim() === type) matched = true; });
           row.style.display = matched ? '' : 'none';
         });
       }
-
       function showAll() {
         document.querySelectorAll('table tbody tr').forEach(function(row) { row.style.display = ''; });
       }
@@ -466,7 +373,6 @@
         var thead = table.querySelector('thead tr');
         if (!thead) return;
         var ths = Array.from(thead.querySelectorAll('th'));
-
         var nameIdx = -1, dateIdx = -1, timeIdx = -1;
         ths.forEach(function(th, i) {
           var t = th.textContent.trim();
@@ -475,7 +381,6 @@
           if (t === '시간') timeIdx = i;
         });
         if (timeIdx < 0) return;
-
         var hasSatHeader = ths.some(function(th) { return th.textContent.trim() === '만족도'; });
         if (!hasSatHeader) {
           var satTh = document.createElement('th');
@@ -484,26 +389,21 @@
           satTh.className = ths[timeIdx].className;
           ths[timeIdx].after(satTh);
         }
-
         Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
           if (row.querySelector('[data-sat-cell]')) return;
           var tds = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
           if (!tds[timeIdx]) return;
-
           var eduName = nameIdx >= 0 && tds[nameIdx] ? tds[nameIdx].textContent.trim() : '';
           var eduDate = dateIdx >= 0 && tds[dateIdx] ? tds[dateIdx].textContent.trim() : '';
           var key = eduName + '_' + eduDate;
-
           var satTd = document.createElement('td');
           satTd.setAttribute('data-sat-cell', 'true');
           satTd.setAttribute('data-sat-key', key);
           satTd.className = tds[timeIdx].className;
           satTd.style.textAlign = 'center';
-
           var val = satisfactionCache[key] || '';
           satTd.textContent = val || '-';
           if (val) { satTd.style.color = '#059669'; satTd.style.fontWeight = '600'; }
-
           makeSatCellEditable(satTd, key);
           tds[timeIdx].after(satTd);
         });
@@ -529,36 +429,18 @@
         for (var i = 0; i < allDivs.length; i++) {
           var div = allDivs[i];
           if (div.textContent.includes('새 교육 입력') && div.querySelector('select')) {
-            modal = div;
-            break;
+            modal = div; break;
           }
         }
         if (!modal) return;
 
-        var allowedTypes = ['신입', '기존', '특강', '관리자'];
-
-        modal.querySelectorAll('select').forEach(function(sel) {
-          if (sel.id === 'my-instr-select') return;
-          var opts = Array.from(sel.options);
-          var texts = opts.map(function(o) { return o.text; });
-          // 방식 select 제외
-          if (texts.some(function(t) { return t === '온라인' || t === '오프라인'; })) return;
-          // 강사명 select 제외
-          if (texts.some(function(t) { return ['김보경','김현정','나혜리','구혜린'].indexOf(t) > -1; })) return;
-          // 이미 정확히 설정된 경우 제외
-          if (opts.length === 4 && texts.indexOf('신입') > -1 && texts.indexOf('기존') > -1 &&
-              texts.indexOf('특강') > -1 && texts.indexOf('관리자') > -1) return;
-          // 센터 select 제외 (옵션 5개 이상)
-          if (opts.length >= 5) return;
-          // 교육유형 select 설정
-          sel.innerHTML = '';
-          allowedTypes.forEach(function(type) {
-            var opt = document.createElement('option');
-            opt.value = type; opt.text = type;
-            sel.appendChild(opt);
-          });
+        // 실수로 숨겨진 교육유형 버튼 컨테이너 복원
+        modal.querySelectorAll('[data-react-hidden="true"]').forEach(function(el) {
+          el.removeAttribute('data-react-hidden');
+          el.style.removeProperty('display');
         });
 
+        // 인원/시간 input 자유 숫자 입력
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           inp.removeAttribute('min');
@@ -566,14 +448,12 @@
           inp.removeAttribute('step');
           inp.setAttribute('data-free-input', 'true');
         });
-
         modal.querySelectorAll('input').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           var label = modal.querySelector('label[for="' + inp.id + '"]');
           var labelText = label ? label.textContent : '';
           var prevText = inp.previousElementSibling ? inp.previousElementSibling.textContent : '';
-          if (labelText.includes('인원') || labelText.includes('시간') ||
-              prevText.includes('인원') || prevText.includes('시간')) {
+          if (labelText.includes('인원') || labelText.includes('시간') || prevText.includes('인원') || prevText.includes('시간')) {
             inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
             inp.setAttribute('type', 'number');
             inp.setAttribute('data-free-input', 'true');
@@ -600,7 +480,7 @@
           return { key: '미상', label: '미상' };
         }
         var instrIdx = Math.max(headers.indexOf('강사'), 0);
-        var timeIdx  = Math.max(headers.indexOf('시간'), 0);
+        var timeIdx = Math.max(headers.indexOf('시간'), 0);
         var personIdx = Math.max(headers.indexOf('인원'), 0);
         var centerIdx = Math.max(headers.indexOf('센터'), 0);
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
@@ -640,8 +520,8 @@
           sortedMonthKeys.forEach(function(mk) {
             if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
               t.교육횟수 += instrMonthMap[instr][mk].교육횟수;
-              t.총시간   += instrMonthMap[instr][mk].총시간;
-              t.총인원   += instrMonthMap[instr][mk].총인원;
+              t.총시간 += instrMonthMap[instr][mk].총시간;
+              t.총인원 += instrMonthMap[instr][mk].총인원;
             }
           });
           totalRow.push(t.총시간); totalRow.push(t.교육횟수); totalRow.push(t.총인원); totalRow.push('');
@@ -655,9 +535,7 @@
           centerMap[c].총시간 += parseFloat(row[timeIdx]) || 0;
           centerMap[c].총인원 += parseInt(row[personIdx]) || 0;
         });
-        var centerData = Object.entries(centerMap).map(function(e) {
-          return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
-        });
+        var centerData = Object.entries(centerMap).map(function(e) { return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원]; });
         var now = new Date();
         var filename = 'MetaM_교육백업_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.xls';
         function makeSheet(name, hdrs, rows2) {
