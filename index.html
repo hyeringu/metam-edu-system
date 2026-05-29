@@ -251,6 +251,22 @@
       var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_UgGddGsbkrdQ0_H0G5sVluZSCg_g5WhFA07sAZxWPdhlAFg0akERZIVku1BDT2xZ/exec';
       var satisfactionCache = {};
 
+      function loadLocalSatisfaction() {
+        try {
+          var stored = JSON.parse(localStorage.getItem('metamEdu_satisfaction') || '{}');
+          Object.keys(stored).forEach(function(k) { satisfactionCache[k] = stored[k]; });
+        } catch(e) {}
+      }
+
+      function saveSatisfaction(key, value) {
+        try {
+          var stored = JSON.parse(localStorage.getItem('metamEdu_satisfaction') || '{}');
+          if (value && value !== '-') stored[key] = value;
+          else delete stored[key];
+          localStorage.setItem('metamEdu_satisfaction', JSON.stringify(stored));
+        } catch(e) {}
+      }
+
       function loadSatisfactionData() {
         fetch(APPS_SCRIPT_URL + '?action=getSummary')
           .then(function(res) { return res.json(); })
@@ -259,12 +275,11 @@
             data.forEach(function(item) {
               var key = item.eduName + '_' + item.eduDate;
               satisfactionCache[key] = item.avg + '점 (' + item.count + '명)';
+              saveSatisfaction(key, satisfactionCache[key]);
             });
             refreshSatisfactionCells();
           })
-          .catch(function(err) {
-            console.warn('만족도 데이터 로드 실패:', err);
-          });
+          .catch(function(err) { console.warn('만족도 데이터 로드 실패:', err); });
       }
 
       function refreshSatisfactionCells() {
@@ -278,6 +293,30 @@
         });
       }
 
+      function makeSatCellEditable(satTd, key) {
+        satTd.style.cursor = 'pointer';
+        satTd.title = '클릭하여 만족도 직접 입력';
+        satTd.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var current = satisfactionCache[key] || '';
+          var val = prompt('만족도를 입력하세요.\n예) 4.5점 (12명) 또는 4.5\n(비워두면 초기화)', current);
+          if (val === null) return;
+          val = val.trim();
+          if (val) {
+            satisfactionCache[key] = val;
+            satTd.textContent = val;
+            satTd.style.color = '#059669';
+            satTd.style.fontWeight = '600';
+          } else {
+            delete satisfactionCache[key];
+            satTd.textContent = '-';
+            satTd.style.color = '';
+            satTd.style.fontWeight = '';
+          }
+          saveSatisfaction(key, val);
+        });
+      }
+
       function waitForReact() {
         var debounce = null;
         var observer = new MutationObserver(function() {
@@ -288,13 +327,13 @@
         setTimeout(applyCustomizations, 800);
         setTimeout(applyCustomizations, 2000);
         setTimeout(applyCustomizations, 4000);
+        loadLocalSatisfaction();
         setTimeout(loadSatisfactionData, 1000);
       }
 
       function applyCustomizations() {
         hideReactFilterBtns();
-        ensureMyFilterBtns();
-        moveBackupBtn();
+        ensureToolbar();
         fixSatisfactionCol();
         watchModalOpen();
         if (currentFilter) filterRows(currentFilter);
@@ -317,14 +356,22 @@
         });
       }
 
-      function ensureMyFilterBtns() {
-        if (document.getElementById('my-filter-btns')) return;
-        var hiddenParent = document.querySelector('[data-react-hidden="true"]');
-        if (!hiddenParent) return;
+      function ensureToolbar() {
+        if (document.getElementById('mm-toolbar')) return;
+        var searchInput = document.querySelector('input[placeholder*="검색"]');
+        if (!searchInput) return;
+        var searchContainer = searchInput.closest('div');
+        if (!searchContainer) return;
+        var wrapper = searchContainer.parentElement;
+        if (!wrapper) return;
 
-        var container = document.createElement('div');
-        container.id = 'my-filter-btns';
-        container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;';
+        var toolbar = document.createElement('div');
+        toolbar.id = 'mm-toolbar';
+        toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;';
+
+        var filterGroup = document.createElement('div');
+        filterGroup.id = 'my-filter-btns';
+        filterGroup.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
 
         ['전체','신입','기존','특강','관리자'].forEach(function(label) {
           var btn = document.createElement('button');
@@ -338,12 +385,12 @@
             applyInstructorFilter();
             updateMyBtns();
           });
-          container.appendChild(btn);
+          filterGroup.appendChild(btn);
         });
 
         var select = document.createElement('select');
         select.id = 'my-instr-select';
-        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;';
+        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;height:38px;';
         ['전체 강사','김보경','김현정','나혜리','구혜린'].forEach(function(name) {
           var opt = document.createElement('option');
           opt.value = name; opt.textContent = name;
@@ -354,8 +401,19 @@
           if (currentFilter) filterRows(currentFilter); else showAll();
           applyInstructorFilter();
         });
-        container.appendChild(select);
-        hiddenParent.parentNode.insertBefore(container, hiddenParent);
+        filterGroup.appendChild(select);
+
+        var backupBtn = document.createElement('button');
+        backupBtn.textContent = '📥 전체 백업 다운로드';
+        backupBtn.setAttribute('data-backup-btn', 'true');
+        backupBtn.style.cssText = 'padding:7px 14px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;height:38px;';
+        backupBtn.onmouseover = function() { backupBtn.style.background = '#047857'; };
+        backupBtn.onmouseout = function() { backupBtn.style.background = '#059669'; };
+        backupBtn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
+
+        toolbar.appendChild(filterGroup);
+        toolbar.appendChild(backupBtn);
+        wrapper.insertBefore(toolbar, searchContainer);
       }
 
       function getBtnStyle(active) {
@@ -406,95 +464,47 @@
         var thead = table.querySelector('thead tr');
         if (!thead) return;
         var ths = Array.from(thead.querySelectorAll('th'));
-        if (ths.some(function(th) { return th.textContent.trim() === '만족도'; })) {
-          var timeIdx = -1;
-          ths.forEach(function(th, i) { if (th.textContent.trim() === '시간') timeIdx = i; });
-          if (timeIdx < 0) return;
-          var nameIdx = -1, dateIdx = -1;
-          ths.forEach(function(th, i) {
-            if (th.textContent.trim() === '교육명') nameIdx = i;
-            if (th.textContent.trim() === '날짜') dateIdx = i;
-          });
-          Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
-            if (row.querySelector('[data-sat-cell]')) return;
-            var tds = Array.from(row.querySelectorAll('td'));
-            if (!tds[timeIdx]) return;
-            var satTd = document.createElement('td');
-            satTd.setAttribute('data-sat-cell', 'true');
-            satTd.className = tds[timeIdx].className;
-            satTd.style.textAlign = 'center';
-            var eduName = nameIdx >= 0 && tds[nameIdx] ? tds[nameIdx].textContent.trim() : '';
-            var eduDate = dateIdx >= 0 && tds[dateIdx] ? tds[dateIdx].textContent.trim() : '';
-            var key = eduName + '_' + eduDate;
-            satTd.setAttribute('data-sat-key', key);
-            satTd.textContent = satisfactionCache[key] || '-';
-            if (satisfactionCache[key]) {
-              satTd.style.color = '#059669';
-              satTd.style.fontWeight = '600';
-            }
-            tds[timeIdx].after(satTd);
-          });
-          return;
-        }
 
-        var timeIdx = -1;
-        ths.forEach(function(th, i) { if (th.textContent.trim() === '시간') timeIdx = i; });
+        var nameIdx = -1, dateIdx = -1, timeIdx = -1;
+        ths.forEach(function(th, i) {
+          var t = th.textContent.trim();
+          if (t === '교육명') nameIdx = i;
+          if (t === '날짜') dateIdx = i;
+          if (t === '시간') timeIdx = i;
+        });
         if (timeIdx < 0) return;
 
-        var nameIdx = -1, dateIdx = -1;
-        ths.forEach(function(th, i) {
-          if (th.textContent.trim() === '교육명') nameIdx = i;
-          if (th.textContent.trim() === '날짜') dateIdx = i;
-        });
-
-        var satTh = document.createElement('th');
-        satTh.textContent = '만족도';
-        satTh.setAttribute('data-sat-col', 'true');
-        satTh.className = ths[timeIdx].className;
-        ths[timeIdx].after(satTh);
+        var hasSatHeader = ths.some(function(th) { return th.textContent.trim() === '만족도'; });
+        if (!hasSatHeader) {
+          var satTh = document.createElement('th');
+          satTh.textContent = '만족도';
+          satTh.setAttribute('data-sat-col', 'true');
+          satTh.className = ths[timeIdx].className;
+          ths[timeIdx].after(satTh);
+        }
 
         Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
+          if (row.querySelector('[data-sat-cell]')) return;
           var tds = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
-          if (!row.querySelector('[data-sat-cell]') && tds[timeIdx]) {
-            var satTd = document.createElement('td');
-            satTd.setAttribute('data-sat-cell', 'true');
-            satTd.className = tds[timeIdx].className;
-            satTd.style.textAlign = 'center';
-            var eduName = nameIdx >= 0 && tds[nameIdx] ? tds[nameIdx].textContent.trim() : '';
-            var eduDate = dateIdx >= 0 && tds[dateIdx] ? tds[dateIdx].textContent.trim() : '';
-            var key = eduName + '_' + eduDate;
-            satTd.setAttribute('data-sat-key', key);
-            satTd.textContent = satisfactionCache[key] || '-';
-            if (satisfactionCache[key]) {
-              satTd.style.color = '#059669';
-              satTd.style.fontWeight = '600';
-            }
-            tds[timeIdx].after(satTd);
-          }
-        });
-      }
+          if (!tds[timeIdx]) return;
 
-      function moveBackupBtn() {
-        if (document.querySelector('[data-backup-btn]')) return;
-        var searchInput = document.querySelector('input[placeholder*="검색"]');
-        if (!searchInput) return;
-        var searchContainer = searchInput.closest('div');
-        if (!searchContainer) return;
-        var wrapper = searchContainer.parentElement;
-        if (!wrapper) return;
-        if (document.getElementById('backup-wrapper')) return;
-        var backupWrapper = document.createElement('div');
-        backupWrapper.id = 'backup-wrapper';
-        backupWrapper.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
-        var btn = document.createElement('button');
-        btn.textContent = '📥 전체 백업 다운로드';
-        btn.setAttribute('data-backup-btn', 'true');
-        btn.style.cssText = 'padding:6px 14px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;';
-        btn.onmouseover = function() { btn.style.background = '#047857'; };
-        btn.onmouseout = function() { btn.style.background = '#059669'; };
-        btn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
-        backupWrapper.appendChild(btn);
-        wrapper.insertBefore(backupWrapper, searchContainer);
+          var eduName = nameIdx >= 0 && tds[nameIdx] ? tds[nameIdx].textContent.trim() : '';
+          var eduDate = dateIdx >= 0 && tds[dateIdx] ? tds[dateIdx].textContent.trim() : '';
+          var key = eduName + '_' + eduDate;
+
+          var satTd = document.createElement('td');
+          satTd.setAttribute('data-sat-cell', 'true');
+          satTd.setAttribute('data-sat-key', key);
+          satTd.className = tds[timeIdx].className;
+          satTd.style.textAlign = 'center';
+
+          var val = satisfactionCache[key] || '';
+          satTd.textContent = val || '-';
+          if (val) { satTd.style.color = '#059669'; satTd.style.fontWeight = '600'; }
+
+          makeSatCellEditable(satTd, key);
+          tds[timeIdx].after(satTd);
+        });
       }
 
       function watchModalOpen() {
@@ -503,25 +513,26 @@
           if ((t.includes('교육 입력') || t.includes('교육입력')) && !btn.hasAttribute('data-modal-watcher')) {
             btn.setAttribute('data-modal-watcher', 'true');
             btn.addEventListener('click', function() {
-              setTimeout(fixModalSelects, 300);
-              setTimeout(fixModalSelects, 700);
-              setTimeout(fixModalSelects, 1200);
+              setTimeout(fixModalInputs, 300);
+              setTimeout(fixModalInputs, 700);
+              setTimeout(fixModalInputs, 1200);
             });
           }
         });
       }
 
-      function fixModalSelects() {
+      function fixModalInputs() {
         var modal = null;
         var allDivs = Array.from(document.querySelectorAll('div'));
         for (var i = 0; i < allDivs.length; i++) {
           var div = allDivs[i];
           if (div.textContent.includes('새 교육 입력') && div.querySelector('select') && div.children.length < 20) {
-            modal = div;
-            break;
+            modal = div; break;
           }
         }
         if (!modal) return;
+
+        // 교육유형: 신입/기존/특강/관리자만
         var allowedTypes = ['신입', '기존', '특강', '관리자'];
         modal.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
@@ -539,6 +550,28 @@
             sel.appendChild(opt);
           });
           sel.setAttribute('data-modal-fixed', 'true');
+        });
+
+        // 인원/시간 input: 제한 해제
+        modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
+          if (inp.getAttribute('data-free-input') === 'true') return;
+          inp.removeAttribute('min');
+          inp.removeAttribute('max');
+          inp.removeAttribute('step');
+          inp.setAttribute('data-free-input', 'true');
+        });
+
+        modal.querySelectorAll('input').forEach(function(inp) {
+          if (inp.getAttribute('data-free-input') === 'true') return;
+          var label = modal.querySelector('label[for="' + inp.id + '"]');
+          var labelText = label ? label.textContent : '';
+          var prevText = inp.previousElementSibling ? inp.previousElementSibling.textContent : '';
+          if (labelText.includes('인원') || labelText.includes('시간') ||
+              prevText.includes('인원') || prevText.includes('시간')) {
+            inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
+            inp.setAttribute('type', 'number');
+            inp.setAttribute('data-free-input', 'true');
+          }
         });
       }
 
@@ -561,12 +594,11 @@
           return { key: '미상', label: '미상' };
         }
         var instrIdx = Math.max(headers.indexOf('강사'), 0);
-        var timeIdx = Math.max(headers.indexOf('시간'), 0);
+        var timeIdx  = Math.max(headers.indexOf('시간'), 0);
         var personIdx = Math.max(headers.indexOf('인원'), 0);
         var centerIdx = Math.max(headers.indexOf('센터'), 0);
         var instrOrder = ['김보경','김현정','나혜리','구혜린'];
-        var instrMonthMap = {};
-        var allMonths = {};
+        var instrMonthMap = {}, allMonths = {};
         data.forEach(function(row) {
           var instr = row[instrIdx] || '미배정';
           var dateInfo = getDateFromRow(row);
@@ -602,8 +634,8 @@
           sortedMonthKeys.forEach(function(mk) {
             if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
               t.교육횟수 += instrMonthMap[instr][mk].교육횟수;
-              t.총시간 += instrMonthMap[instr][mk].총시간;
-              t.총인원 += instrMonthMap[instr][mk].총인원;
+              t.총시간   += instrMonthMap[instr][mk].총시간;
+              t.총인원   += instrMonthMap[instr][mk].총인원;
             }
           });
           totalRow.push(t.총시간); totalRow.push(t.교육횟수); totalRow.push(t.총인원); totalRow.push('');
