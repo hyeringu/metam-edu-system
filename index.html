@@ -452,33 +452,29 @@
       // ⑥ 교육 입력 모달 - 유형 select 옵션 수정
       // React 모달이 열릴때 '정규' 옵션을 '신입'/'기존'으로 교체
       function fixInputModal() {
-        // 모달 내 select 요소 찾기
-        var selects = document.querySelectorAll('select');
-        selects.forEach(function(sel) {
-          // 강사 드롭다운은 건드리지 않음
+        // 교육 유형 select: 신입, 기존, 특강, 관리자 4가지만 표시
+        // 전체/정규/전체강사 제거
+        var allowedTypes = ['신입', '기존', '특강', '관리자'];
+        document.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
 
           var opts = Array.from(sel.options);
-          var hasRegular = opts.some(function(o) { return o.value === '정규' || o.text === '정규'; });
-          var hasNewbie = opts.some(function(o) { return o.value === '신입' || o.text === '신입'; });
+          // 교육 유형 select인지 판단 (신입/기존/특강/관리자/정규 중 하나라도 있으면)
+          var isTypeSelect = opts.some(function(o) {
+            return ['신입','기존','특강','관리자','정규','전체'].indexOf(o.value) > -1 ||
+                   ['신입','기존','특강','관리자','정규','전체'].indexOf(o.text) > -1;
+          });
+          if (!isTypeSelect) return;
+          if (sel.getAttribute('data-fixed') === 'true') return;
 
-          if (hasRegular && !hasNewbie) {
-            // '정규' 옵션을 찾아서 제거하고 신입/기존 추가
-            var regularOpt = opts.find(function(o) { return o.value === '정규' || o.text === '정규'; });
-            if (regularOpt) {
-              var insertBefore = regularOpt.nextSibling;
-              // 신입 옵션 추가
-              var newbieOpt = document.createElement('option');
-              newbieOpt.value = '신입'; newbieOpt.text = '신입';
-              sel.insertBefore(newbieOpt, regularOpt);
-              // 기존 옵션 추가
-              var existingOpt = document.createElement('option');
-              existingOpt.value = '기존'; existingOpt.text = '기존';
-              sel.insertBefore(existingOpt, regularOpt);
-              // 정규 옵션 제거
-              sel.removeChild(regularOpt);
-            }
-          }
+          // 기존 옵션 전부 제거 후 4가지만 추가
+          sel.innerHTML = '';
+          allowedTypes.forEach(function(type) {
+            var opt = document.createElement('option');
+            opt.value = type; opt.text = type;
+            sel.appendChild(opt);
+          });
+          sel.setAttribute('data-fixed', 'true');
         });
       }
 
