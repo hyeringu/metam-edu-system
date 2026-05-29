@@ -336,6 +336,7 @@
         ensureToolbar();
         fixSatisfactionCol();
         watchModalOpen();
+        fixModalInputs();
         if (currentFilter) filterRows(currentFilter);
         else showAll();
         applyInstructorFilter();
@@ -360,7 +361,6 @@
         if (document.getElementById('mm-toolbar')) return;
         var searchInput = document.querySelector('input[placeholder*="검색"]');
         if (!searchInput) return;
-        // 센터별 현황 탭 검색창이면 제외
         if (searchInput.placeholder.includes('센터')) return;
         var searchContainer = searchInput.closest('div');
         if (!searchContainer) return;
@@ -528,26 +528,37 @@
         var allDivs = Array.from(document.querySelectorAll('div'));
         for (var i = 0; i < allDivs.length; i++) {
           var div = allDivs[i];
-          if (div.textContent.includes('새 교육 입력') && div.querySelector('select') && div.children.length < 20) {
-            modal = div; break;
+          if (div.textContent.includes('새 교육 입력') && div.querySelector('select')) {
+            modal = div;
+            break;
           }
         }
         if (!modal) return;
 
-        // 교육유형은 모달의 첫 번째 select
         var allowedTypes = ['신입', '기존', '특강', '관리자'];
-        var firstSel = modal.querySelector('select:not(#my-instr-select)');
-        if (firstSel && firstSel.getAttribute('data-modal-fixed') !== 'true') {
-          firstSel.innerHTML = '';
+
+        modal.querySelectorAll('select').forEach(function(sel) {
+          if (sel.id === 'my-instr-select') return;
+          var opts = Array.from(sel.options);
+          var texts = opts.map(function(o) { return o.text; });
+          // 방식 select 제외
+          if (texts.some(function(t) { return t === '온라인' || t === '오프라인'; })) return;
+          // 강사명 select 제외
+          if (texts.some(function(t) { return ['김보경','김현정','나혜리','구혜린'].indexOf(t) > -1; })) return;
+          // 이미 정확히 설정된 경우 제외
+          if (opts.length === 4 && texts.indexOf('신입') > -1 && texts.indexOf('기존') > -1 &&
+              texts.indexOf('특강') > -1 && texts.indexOf('관리자') > -1) return;
+          // 센터 select 제외 (옵션 5개 이상)
+          if (opts.length >= 5) return;
+          // 교육유형 select 설정
+          sel.innerHTML = '';
           allowedTypes.forEach(function(type) {
             var opt = document.createElement('option');
             opt.value = type; opt.text = type;
-            firstSel.appendChild(opt);
+            sel.appendChild(opt);
           });
-          firstSel.setAttribute('data-modal-fixed', 'true');
-        }
+        });
 
-        // 인원/시간 input: 자유 숫자 입력 허용
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           inp.removeAttribute('min');
