@@ -276,9 +276,9 @@
       function applyCustomizations() {
         hideReactFilterBtns();
         ensureMyFilterBtns();
-        addBackupBtn();
+        moveBackupBtn();
         fixSatisfactionCol();
-        fixInputModal();
+        watchModalOpen();
         if (currentFilter) filterRows(currentFilter);
         else showAll();
         applyInstructorFilter();
@@ -386,88 +386,100 @@
         document.querySelectorAll('table tbody tr').forEach(function(row) { row.style.display = ''; });
       }
 
-      // ⑤ 만족도 컬럼 수정
-      // React가 렌더링한 테이블에서 실제 satisfaction 데이터 찾아서 표시
+      // ⑤ 만족도 컬럼
       function fixSatisfactionCol() {
         var table = document.querySelector('table');
         if (!table) return;
         var thead = table.querySelector('thead tr');
         if (!thead) return;
         var ths = Array.from(thead.querySelectorAll('th'));
-
-        // 이미 만족도 헤더 있으면 데이터만 업데이트
-        var satThIdx = -1;
-        ths.forEach(function(th, i) { if (th.textContent.trim() === '만족도') satThIdx = i; });
-
-        // 시간 헤더 위치 찾기
+        if (ths.some(function(th) { return th.textContent.trim() === '만족도'; })) return;
         var timeIdx = -1;
         ths.forEach(function(th, i) { if (th.textContent.trim() === '시간') timeIdx = i; });
         if (timeIdx < 0) return;
-
-        // 만족도 헤더가 없으면 추가
-        if (satThIdx < 0) {
-          var satTh = document.createElement('th');
-          satTh.textContent = '만족도';
-          satTh.setAttribute('data-sat-col', 'true');
-          satTh.className = ths[timeIdx].className;
-          ths[timeIdx].after(satTh);
-          satThIdx = timeIdx + 1;
-        }
-
-        // 각 행에 만족도 셀 추가 또는 업데이트
+        var satTh = document.createElement('th');
+        satTh.textContent = '만족도';
+        satTh.setAttribute('data-sat-col', 'true');
+        satTh.className = ths[timeIdx].className;
+        ths[timeIdx].after(satTh);
         Array.from(table.querySelectorAll('tbody tr')).forEach(function(row) {
           var tds = Array.from(row.querySelectorAll('td:not([data-sat-cell])'));
-          if (tds.length === 0) return;
-
-          // 기존 만족도 셀 확인
-          var existingSat = row.querySelector('[data-sat-cell]');
-
-          // React 테이블의 실제 데이터에서 만족도 찾기
-          // React가 숨겨진 data 속성이나 추가 td로 satisfaction을 넘길 수 있음
-          // → 모든 td 텍스트를 보고 숫자 패턴(1~5 또는 소수점) 중 만족도로 보이는 값 찾기
-          // → 단, 인원/시간과 겹치지 않도록 관리 td(아이콘) 다음 위치 확인
-          var satValue = '-';
-
-          // React 컴포넌트가 tr에 data 속성으로 satisfaction을 넘기는 경우
-          var rowData = row.getAttribute('data-satisfaction') ||
-                        row.getAttribute('data-sat') ||
-                        row.getAttribute('satisfaction');
-          if (rowData) satValue = rowData;
-
-          if (!existingSat) {
+          if (!row.querySelector('[data-sat-cell]') && tds[timeIdx]) {
             var satTd = document.createElement('td');
             satTd.setAttribute('data-sat-cell', 'true');
-            satTd.textContent = satValue;
-            satTd.className = tds[timeIdx] ? tds[timeIdx].className : '';
-            satTd.style.cssText = 'text-align:center;';
-            if (tds[timeIdx]) tds[timeIdx].after(satTd);
-          } else {
-            if (existingSat.textContent === '-' && satValue !== '-') {
-              existingSat.textContent = satValue;
-            }
+            satTd.textContent = '-';
+            satTd.className = tds[timeIdx].className;
+            satTd.style.textAlign = 'center';
+            tds[timeIdx].after(satTd);
           }
         });
       }
 
-      // ⑥ 교육 입력 모달 - 유형 select 옵션 수정
-      // React 모달이 열릴때 '정규' 옵션을 '신입'/'기존'으로 교체
-      function fixInputModal() {
-        // 교육 유형 select: 신입, 기존, 특강, 관리자 4가지만 표시
-        // 전체/정규/전체강사 제거
+      // ⑥ 백업 버튼 - 검색창 오른쪽 상단에 위치
+      function moveBackupBtn() {
+        if (document.querySelector('[data-backup-btn]')) return;
+
+        // 검색창(input) 부모 컨테이너 찾기
+        var searchInput = document.querySelector('input[placeholder*="검색"]');
+        if (!searchInput) return;
+        var searchContainer = searchInput.closest('div');
+        if (!searchContainer) return;
+
+        // 검색창을 감싸는 상위 컨테이너에 flex 레이아웃 적용
+        var wrapper = searchContainer.parentElement;
+        if (!wrapper) return;
+
+        // 이미 백업 래퍼가 있으면 스킵
+        if (document.getElementById('backup-wrapper')) return;
+
+        // 백업 버튼 래퍼 생성
+        var backupWrapper = document.createElement('div');
+        backupWrapper.id = 'backup-wrapper';
+        backupWrapper.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
+
+        var btn = document.createElement('button');
+        btn.textContent = '📥 전체 백업 다운로드';
+        btn.setAttribute('data-backup-btn', 'true');
+        btn.style.cssText = 'padding:6px 14px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;';
+        btn.onmouseover = function() { btn.style.background = '#047857'; };
+        btn.onmouseout = function() { btn.style.background = '#059669'; };
+        btn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
+
+        backupWrapper.appendChild(btn);
+        // 검색창 컨테이너 바로 앞에 삽입
+        wrapper.insertBefore(backupWrapper, searchContainer);
+      }
+
+      // ⑦ 교육 입력 모달 감지 - + 교육 입력 버튼 클릭 시 select 수정
+      function watchModalOpen() {
+        // + 교육 입력 버튼 찾기
+        document.querySelectorAll('button').forEach(function(btn) {
+          var t = btn.textContent.trim();
+          if ((t.includes('교육 입력') || t.includes('교육입력') || t === '+') && !btn.hasAttribute('data-modal-watcher')) {
+            btn.setAttribute('data-modal-watcher', 'true');
+            btn.addEventListener('click', function() {
+              // 모달이 열릴 때까지 대기 후 select 수정
+              setTimeout(fixModalSelects, 300);
+              setTimeout(fixModalSelects, 600);
+              setTimeout(fixModalSelects, 1000);
+            });
+          }
+        });
+      }
+
+      function fixModalSelects() {
         var allowedTypes = ['신입', '기존', '특강', '관리자'];
         document.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
+          if (sel.getAttribute('data-fixed') === 'true') return;
 
           var opts = Array.from(sel.options);
-          // 교육 유형 select인지 판단 (신입/기존/특강/관리자/정규 중 하나라도 있으면)
           var isTypeSelect = opts.some(function(o) {
             return ['신입','기존','특강','관리자','정규','전체'].indexOf(o.value) > -1 ||
                    ['신입','기존','특강','관리자','정규','전체'].indexOf(o.text) > -1;
           });
           if (!isTypeSelect) return;
-          if (sel.getAttribute('data-fixed') === 'true') return;
 
-          // 기존 옵션 전부 제거 후 4가지만 추가
           sel.innerHTML = '';
           allowedTypes.forEach(function(type) {
             var opt = document.createElement('option');
@@ -476,23 +488,6 @@
           });
           sel.setAttribute('data-fixed', 'true');
         });
-      }
-
-      // ⑦ 백업 버튼
-      function addBackupBtn() {
-        if (document.querySelector('[data-backup-btn]')) return;
-        var recordHeader = Array.from(document.querySelectorAll('h2')).find(function(h) {
-          return h.textContent.trim() === '교육 기록';
-        });
-        if (!recordHeader) return;
-        var btn = document.createElement('button');
-        btn.textContent = '📥 전체 백업 다운로드';
-        btn.setAttribute('data-backup-btn', 'true');
-        btn.style.cssText = 'padding:5px 10px;background:#059669;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;margin-top:8px;display:block;';
-        btn.onmouseover = function() { btn.style.background = '#047857'; };
-        btn.onmouseout = function() { btn.style.background = '#059669'; };
-        btn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
-        recordHeader.parentNode.insertBefore(btn, recordHeader.nextSibling);
       }
 
       // ⑧ 엑셀 다운로드
