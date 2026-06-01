@@ -1,34 +1,413 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MetaM 교육 관리 시스템</title>
+    <script type="module" crossorigin src="/assets/index-cdt6q6hz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-m59glmsz.css">
+    <style>
+      /* 인원/시간 숫자 컬럼 정렬 */
+      table tbody td { text-align: left; }
+      table tbody td:nth-child(7),
+      table tbody td:nth-child(8) { text-align: right; padding-right: 1.5rem; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <div id="mm-bar" style="position:fixed; top:10px; right:14px; z-index:9000; display:flex; align-items:center; gap:6px; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <span id="mm-user" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#94a3b8; padding:5px 14px; border-radius:20px; font-size:13px;"></span>
+      <button onclick="mmOpenPw()" title="비밀번호 변경" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">🔑</button>
+      <button onclick="mmOpenAudit()" title="감사 로그" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">📋</button>
+      <button onclick="mmLogout()" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#ef4444; padding:5px 12px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">로그아웃</button>
+    </div>
+
+    <div id="mm-pw-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:36px 32px; width:320px;">
+        <h3 style="color:#f1f5f9; margin:0 0 6px; font-size:17px;">비밀번호 변경</h3>
+        <p id="mm-pw-desc" style="color:#94a3b8; font-size:13px; margin:0 0 20px;"></p>
+        <div id="mm-pw-err" style="display:none; background:#7f1d1d; border:1px solid #dc2626; color:#fca5a5; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:12px;"></div>
+        <input id="mm-pw-new" type="password" placeholder="새 비밀번호" style="width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:10px;">
+        <input id="mm-pw-confirm" type="password" placeholder="새 비밀번호 확인" style="width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none; margin-bottom:20px;">
+        <div style="display:flex; gap:8px;">
+          <button id="mm-pw-cancel" style="flex:1; padding:10px; background:#334155; color:#f1f5f9; border:none; border-radius:8px; font-size:14px; cursor:pointer;">취소</button>
+          <button onclick="mmSavePw()" style="flex:2; padding:10px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">변경하기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mm-audit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; width:780px; max-width:95vw; max-height:82vh; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="padding:22px 26px 0; border-bottom:1px solid #334155; flex-shrink:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h3 style="color:#f1f5f9; margin:0; font-size:17px;">🔐 감사 로그</h3>
+            <button onclick="mmCloseAudit()" style="background:#334155; border:none; color:#94a3b8; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:13px;">닫기</button>
+          </div>
+          <div id="mm-audit-pw-sec" style="margin-bottom:14px;">
+            <div style="display:flex; gap:8px;">
+              <input id="mm-audit-pw" type="password" placeholder="관리자 비밀번호" style="flex:1; padding:9px 12px; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#f1f5f9; font-size:14px; outline:none;">
+              <button onclick="mmCheckAuditPw()" style="padding:9px 16px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer;">확인</button>
+            </div>
+            <div id="mm-audit-pw-err" style="display:none; color:#ef4444; font-size:12px; margin-top:6px;"></div>
+          </div>
+        </div>
+        <div id="mm-audit-content" style="display:none; flex:1; overflow-y:auto; padding:0 26px 22px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 10px;">
+            <span id="mm-audit-count" style="color:#64748b; font-size:13px;"></span>
+            <button onclick="mmClearLogs()" style="background:#7f1d1d; border:none; color:#fca5a5; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px;">로그 초기화</button>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="border-bottom:1px solid #334155;">
+                <th style="padding:9px 8px; color:#64748b; text-align:left; font-weight:500; white-space:nowrap;">시간</th>
+                <th style="padding:9px 8px; color:#64748b; text-align:left; font-weight:500;">사번</th>
+                <th style="padding:9px 8px; color:#64748b; text-align:left; font-weight:500;">이름</th>
+                <th style="padding:9px 8px; color:#64748b; text-align:left; font-weight:500;">행동</th>
+                <th style="padding:9px 8px; color:#64748b; text-align:left; font-weight:500;">상세</th>
+              </tr>
+            </thead>
+            <tbody id="mm-audit-tbody"></tbody>
+          </table>
+          <div id="mm-audit-empty" style="display:none; text-align:center; padding:40px; color:#64748b;">로그 기록이 없습니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    const PFX = 'metamEdu_';
+    const AUDIT_PW = '7256!';
+    let mmUser = null;
+    try { mmUser = JSON.parse(localStorage.getItem(PFX + 'currentUser') || 'null'); } catch(e) {}
+    if (!mmUser) { location.replace('./login.html'); } else { document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')'; }
+    function mmLog(action, detail) {
+      if (!mmUser) return;
+      try {
+        const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
+        logs.unshift({ ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), id: mmUser.id, name: mmUser.name, action, detail: detail || '' });
+        if (logs.length > 500) logs.splice(500);
+        localStorage.setItem(PFX + 'auditLogs', JSON.stringify(logs));
+      } catch(e) {}
+    }
+    const _origAlert = window.alert;
+    window.alert = function(msg) {
+      if (mmUser && typeof msg === 'string') {
+        if (msg.includes('추가')) mmLog('교육 추가', msg);
+        else if (msg.includes('수정')) mmLog('교육 수정', msg);
+        else if (msg.includes('삭제')) mmLog('교육 삭제', msg);
+      }
+      return _origAlert.apply(this, arguments);
+    };
+    function mmLogout() {
+      mmLog('로그아웃');
+      localStorage.removeItem(PFX + 'currentUser');
+      if (localStorage.getItem(PFX + 'autoLogin') !== '1') localStorage.removeItem(PFX + 'autoLoginUser');
+      location.replace('./login.html');
+    }
+    function mmOpenPw() {
+      document.getElementById('mm-pw-desc').textContent = '새 비밀번호를 입력하세요.';
+      document.getElementById('mm-pw-new').value = '';
+      document.getElementById('mm-pw-confirm').value = '';
+      document.getElementById('mm-pw-err').style.display = 'none';
+      document.getElementById('mm-pw-cancel').style.display = '';
+      document.getElementById('mm-pw-modal').style.display = 'flex';
+    }
+    document.getElementById('mm-pw-cancel').addEventListener('click', () => { document.getElementById('mm-pw-modal').style.display = 'none'; });
+    function mmSavePw() {
+      const np = document.getElementById('mm-pw-new').value;
+      const cp = document.getElementById('mm-pw-confirm').value;
+      const errEl = document.getElementById('mm-pw-err');
+      errEl.style.display = 'none';
+      if (!np) { errEl.textContent = '새 비밀번호를 입력하세요.'; errEl.style.display = 'block'; return; }
+      if (np !== cp) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; errEl.style.display = 'block'; return; }
+      localStorage.setItem(PFX + 'pw_' + mmUser.id, np);
+      mmLog('비밀번호 변경', '사번: ' + mmUser.id);
+      document.getElementById('mm-pw-modal').style.display = 'none';
+      alert('비밀번호가 변경되었습니다!');
+    }
+    function mmOpenAudit() {
+      document.getElementById('mm-audit-pw-sec').style.display = 'block';
+      document.getElementById('mm-audit-content').style.display = 'none';
+      document.getElementById('mm-audit-pw').value = '';
+      document.getElementById('mm-audit-pw-err').style.display = 'none';
+      document.getElementById('mm-audit-modal').style.display = 'flex';
+      mmLog('감사로그 열기 시도');
+    }
+    function mmCloseAudit() { document.getElementById('mm-audit-modal').style.display = 'none'; }
+    function mmCheckAuditPw() {
+      const pw = document.getElementById('mm-audit-pw').value;
+      if (pw === AUDIT_PW) {
+        document.getElementById('mm-audit-pw-sec').style.display = 'none';
+        document.getElementById('mm-audit-content').style.display = 'block';
+        mmLog('감사로그 열기 성공');
+        mmRenderLogs();
+      } else {
+        document.getElementById('mm-audit-pw-err').textContent = '비밀번호가 올바르지 않습니다.';
+        document.getElementById('mm-audit-pw-err').style.display = 'block';
+        mmLog('감사로그 비밀번호 오류');
+      }
+    }
+    document.getElementById('mm-audit-pw').addEventListener('keydown', e => { if (e.key === 'Enter') mmCheckAuditPw(); });
+    function mmRenderLogs() {
+      const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
+      const tbody = document.getElementById('mm-audit-tbody');
+      document.getElementById('mm-audit-count').textContent = '총 ' + logs.length + '개의 로그';
+      if (logs.length === 0) { tbody.innerHTML = ''; document.getElementById('mm-audit-empty').style.display = 'block'; return; }
+      document.getElementById('mm-audit-empty').style.display = 'none';
+      const colors = { '로그인':'#22c55e','자동 로그인':'#10b981','로그아웃':'#f59e0b','비밀번호 변경':'#3b82f6','교육 추가':'#10b981','교육 수정':'#f59e0b','교육 삭제':'#ef4444','감사로그 열기 성공':'#06b6d4','감사로그 열기 시도':'#a78bfa','감사로그 비밀번호 오류':'#dc2626','로그 초기화':'#dc2626' };
+      tbody.innerHTML = logs.map((log, i) => {
+        const c = Object.entries(colors).find(([k]) => log.action.includes(k))?.[1] || '#94a3b8';
+        return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '"><td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + log.ts + '</td><td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + log.id + '</td><td style="padding:8px; color:#e2e8f0; font-weight:500;">' + log.name + '</td><td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + log.action + '</span></td><td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td></tr>';
+      }).join('');
+    }
+    function mmClearLogs() {
+      if (mmUser.id !== '2024100098') { alert('감사로그 초기화는 관리자만 가능합니다.'); return; }
+      if (confirm('감사로그를 초기화하시겠습니까?')) {
+        const cnt = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]').length;
+        mmLog('로그 초기화', '초기화 전 ' + cnt + '개');
+        localStorage.setItem(PFX + 'auditLogs', '[]');
+        mmRenderLogs();
+      }
+    }
+    </script>
+
+    <script>
+    (function() {
+      var currentFilter = null;
+      var currentInstructor = '전체 강사';
+
+      function waitForReact() {
+        var debounce = null;
+        var observer = new MutationObserver(function() {
+          clearTimeout(debounce);
+          debounce = setTimeout(applyCustomizations, 150);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        setTimeout(applyCustomizations, 800);
+        setTimeout(applyCustomizations, 2000);
+        setTimeout(applyCustomizations, 4000);
+      }
+
+      function applyCustomizations() {
+        hideReactFilterBtns();
+        ensureToolbar();
+        watchModalOpen();
+        fixModalInputs();
+        fixInstructorPage();
+        fixCenterPage();
+        if (currentFilter) filterRows(currentFilter);
+        else showAll();
+        applyInstructorFilter();
+        updateMyBtns();
+      }
+
+      function fixInstructorPage() {
+        document.querySelectorAll('h4').forEach(function(el) {
+          if (el.textContent.trim() === '진행한 센터별 만족도 평균' && !el.getAttribute('data-fixed')) {
+            el.textContent = '진행한 센터 교육 현황';
+            el.setAttribute('data-fixed', 'true');
+          }
+        });
+        document.querySelectorAll('span.text-lg.font-bold.text-blue-600').forEach(function(el) {
+          if (el.getAttribute('data-sat-hidden')) return;
+          var t = el.textContent.trim();
+          if (t === '★' || t.match(/^\d+\.\d+$/)) {
+            el.style.setProperty('display', 'none', 'important');
+            el.setAttribute('data-sat-hidden', 'true');
+          }
+        });
+        document.querySelectorAll('span.text-sm.font-medium.text-slate-700').forEach(function(el) {
+          if (el.getAttribute('data-size-fixed')) return;
+          if (el.textContent.trim().match(/^[A-Z]{2,4}[0-9]*$/)) {
+            el.style.fontSize = '1rem';
+            el.style.fontWeight = '700';
+            el.setAttribute('data-size-fixed', 'true');
+          }
+        });
+      }
+
+      function fixCenterPage() {
+        document.querySelectorAll('th').forEach(function(th) {
+          if (th.textContent.trim() !== '만족도') return;
+          if (th.getAttribute('data-sat-hidden')) return;
+          th.style.setProperty('display', 'none', 'important');
+          th.setAttribute('data-sat-hidden', 'true');
+          var idx = Array.from(th.parentElement.children).indexOf(th);
+          var table = th.closest('table');
+          if (table) {
+            table.querySelectorAll('tbody tr').forEach(function(row) {
+              var td = row.children[idx];
+              if (td) { td.style.setProperty('display', 'none', 'important'); td.setAttribute('data-sat-hidden', 'true'); }
+            });
+          }
+        });
+      }
+
+      function hideReactFilterBtns() {
+        document.querySelectorAll('button').forEach(function(btn) {
+          var t = btn.textContent.trim();
+          if ((t === '전체' || t === '정규' || t === '특강' || t === '관리자') && !btn.hasAttribute('data-my-btn')) {
+            var p = btn.parentElement;
+            var inModal = false;
+            while (p) {
+              if (p.textContent && p.textContent.includes('새 교육 입력')) { inModal = true; break; }
+              p = p.parentElement;
+            }
+            if (inModal) return;
+            var parent = btn.parentElement;
+            if (parent && !parent.hasAttribute('data-react-hidden')) {
+              parent.setAttribute('data-react-hidden', 'true');
+              parent.style.setProperty('display', 'none', 'important');
+            }
+          }
+        });
+      }
+
+      function ensureToolbar() {
+        if (document.getElementById('mm-toolbar')) return;
+        var searchInput = document.querySelector('input[placeholder*="검색"]');
+        if (!searchInput) return;
+        if (searchInput.placeholder.includes('센터')) return;
+        var searchContainer = searchInput.closest('div');
+        if (!searchContainer) return;
+        var wrapper = searchContainer.parentElement;
+        if (!wrapper) return;
+        var toolbar = document.createElement('div');
+        toolbar.id = 'mm-toolbar';
+        toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;';
+        var filterGroup = document.createElement('div');
+        filterGroup.id = 'my-filter-btns';
+        filterGroup.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+        ['전체','신입','기존','특강','관리자'].forEach(function(label) {
+          var btn = document.createElement('button');
+          btn.textContent = label;
+          btn.setAttribute('data-my-btn', 'true');
+          btn.style.cssText = getBtnStyle(false);
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            currentFilter = (label === '전체') ? null : label;
+            if (!currentFilter) showAll(); else filterRows(currentFilter);
+            applyInstructorFilter();
+            updateMyBtns();
+          });
+          filterGroup.appendChild(btn);
+        });
+        var select = document.createElement('select');
+        select.id = 'my-instr-select';
+        select.style.cssText = 'padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#475569;background:white;cursor:pointer;height:38px;';
+        ['전체 강사','김보경','김현정','나혜리','구혜린'].forEach(function(name) {
+          var opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          select.appendChild(opt);
+        });
+        select.addEventListener('change', function() {
+          currentInstructor = select.value;
+          if (currentFilter) filterRows(currentFilter); else showAll();
+          applyInstructorFilter();
+        });
+        filterGroup.appendChild(select);
+        var backupBtn = document.createElement('button');
+        backupBtn.textContent = '📥 전체 백업 다운로드';
+        backupBtn.setAttribute('data-backup-btn', 'true');
+        backupBtn.style.cssText = 'padding:7px 14px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;height:38px;';
+        backupBtn.onmouseover = function() { backupBtn.style.background = '#047857'; };
+        backupBtn.onmouseout = function() { backupBtn.style.background = '#059669'; };
+        backupBtn.onclick = function(e) { e.stopPropagation(); downloadExcel(); };
+        toolbar.appendChild(filterGroup);
+        toolbar.appendChild(backupBtn);
+        wrapper.insertBefore(toolbar, searchContainer);
+      }
+
+      function getBtnStyle(active) {
+        return active
+          ? 'padding:7px 16px;background:#2563eb;color:white;border:1px solid #2563eb;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;height:38px;box-shadow:0 2px 8px rgba(37,99,235,0.3);'
+          : 'padding:7px 16px;background:white;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;height:38px;';
+      }
+
+      function updateMyBtns() {
+        var container = document.getElementById('my-filter-btns');
+        if (!container) return;
+        Array.from(container.querySelectorAll('button[data-my-btn]')).forEach(function(btn) {
+          var t = btn.textContent.trim();
+          var isActive = currentFilter ? t === currentFilter : t === '전체';
+          btn.style.cssText = getBtnStyle(isActive);
+        });
+      }
+
+      function applyInstructorFilter() {
+        if (currentInstructor === '전체 강사') return;
+        document.querySelectorAll('table tbody tr').forEach(function(row) {
+          if (row.style.display === 'none') return;
+          var matched = false;
+          row.querySelectorAll('td').forEach(function(cell) { if (cell.textContent.trim() === currentInstructor) matched = true; });
+          if (!matched) row.style.display = 'none';
+        });
+      }
+
+      function filterRows(type) {
+        document.querySelectorAll('table tbody tr').forEach(function(row) {
+          var matched = false;
+          row.querySelectorAll('td').forEach(function(cell) { if (cell.textContent.trim() === type) matched = true; });
+          row.style.display = matched ? '' : 'none';
+        });
+      }
+
+      function showAll() {
+        document.querySelectorAll('table tbody tr').forEach(function(row) { row.style.display = ''; });
+      }
+
+      function watchModalOpen() {
+        document.querySelectorAll('button').forEach(function(btn) {
+          var t = btn.textContent.trim();
+          if ((t.includes('교육 입력') || t.includes('교육입력')) && !btn.hasAttribute('data-modal-watcher')) {
+            btn.setAttribute('data-modal-watcher', 'true');
+            btn.addEventListener('click', function() {
+              setTimeout(fixModalInputs, 300);
+              setTimeout(fixModalInputs, 700);
+              setTimeout(fixModalInputs, 1200);
+            });
+          }
+        });
+      }
+
+      function fixModalInputs() {
+        var modal = null;
+        var allDivs = Array.from(document.querySelectorAll('div'));
+        for (var i = 0; i < allDivs.length; i++) {
+          var div = allDivs[i];
+          if (div.textContent.includes('새 교육 입력') && div.querySelector('select')) {
+            modal = div; break;
+          }
+        }
+        if (!modal) return;
+
         // 교육유형 버튼 컨테이너만 복원 (만족도 제외)
         modal.querySelectorAll('[data-react-hidden="true"]').forEach(function(el) {
-          // 만족도 관련 요소는 복원하지 않음
           if (el.textContent.includes('만족도')) return;
           el.removeAttribute('data-react-hidden');
           el.style.removeProperty('display');
         });
 
-        // 인원/시간 input 자유 숫자 입력
+        // 인원/시간 자유 숫자 입력
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
-          inp.removeAttribute('min');
-          inp.removeAttribute('max');
-          inp.removeAttribute('step');
+          inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
           inp.setAttribute('data-free-input', 'true');
         });
-
         modal.querySelectorAll('input').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           var label = modal.querySelector('label[for="' + inp.id + '"]');
           var labelText = label ? label.textContent : '';
           var prevText = inp.previousElementSibling ? inp.previousElementSibling.textContent : '';
-          if (labelText.includes('인원') || labelText.includes('시간') ||
-              prevText.includes('인원') || prevText.includes('시간')) {
+          if (labelText.includes('인원') || labelText.includes('시간') || prevText.includes('인원') || prevText.includes('시간')) {
             inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
             inp.setAttribute('type', 'number');
             inp.setAttribute('data-free-input', 'true');
           }
         });
 
-        // 만족도 입력란 숨기기 (placeholder로 정확히 찾기)
+        // 만족도 입력란 숨기기
         modal.querySelectorAll('input').forEach(function(inp) {
           if (inp.placeholder && inp.placeholder.includes('0.0')) {
             var container = inp.parentElement;
@@ -42,15 +421,12 @@
           }
         });
 
-        // 센터 직접 입력 기능 추가
+        // 센터 직접 입력 기능
         addCenterDirectInput(modal);
       }
 
       function addCenterDirectInput(modal) {
-        // 전체 문서 기준으로 중복 체크 (modal이 매번 다른 div일 수 있음)
         if (document.querySelector('[data-center-input]')) return;
-
-        // 센터 select 찾기 (옵션 5개 이상, 방식/강사 아닌 것)
         var centerSel = null;
         modal.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
@@ -64,7 +440,6 @@
         });
         if (!centerSel) return;
 
-        // localStorage에 저장된 커스텀 센터 불러오기
         var customCenters = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
         customCenters.forEach(function(val) {
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
@@ -75,26 +450,20 @@
           }
         });
 
-        // 직접 입력 UI 생성
         var wrapper = document.createElement('div');
         wrapper.setAttribute('data-center-input', 'true');
         wrapper.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;';
-
         var input = document.createElement('input');
         input.type = 'text';
         input.placeholder = '새 센터명 직접 입력';
         input.style.cssText = 'flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;';
-
         var addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.textContent = '추가';
         addBtn.style.cssText = 'padding:8px 14px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;';
-
         addBtn.addEventListener('click', function() {
           var val = input.value.trim();
           if (!val) return;
-
-          // 드롭다운에 추가 후 선택
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
           if (!exists) {
             var opt = document.createElement('option');
@@ -102,24 +471,130 @@
             centerSel.appendChild(opt);
           }
           centerSel.value = val;
-
-          // localStorage 저장
           var saved = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
-          if (!saved.includes(val)) {
-            saved.push(val);
-            localStorage.setItem('metamEdu_customCenters', JSON.stringify(saved));
-          }
-
+          if (!saved.includes(val)) { saved.push(val); localStorage.setItem('metamEdu_customCenters', JSON.stringify(saved)); }
           input.value = '';
           addBtn.textContent = '✓ 추가됨';
           setTimeout(function() { addBtn.textContent = '추가'; }, 1500);
         });
-
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
-        });
-
+        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); } });
         wrapper.appendChild(input);
         wrapper.appendChild(addBtn);
         centerSel.parentElement.appendChild(wrapper);
       }
+
+      function downloadExcel() {
+        var rows = Array.from(document.querySelectorAll('table tbody tr'));
+        var data = [];
+        rows.forEach(function(row) {
+          var cells = Array.from(row.querySelectorAll('td'));
+          if (cells.length > 0) data.push(cells.map(function(c) { return c.textContent.trim(); }));
+        });
+        if (data.length === 0) { alert('백업할 데이터가 없습니다.'); return; }
+        var headers = Array.from(document.querySelectorAll('table thead th')).map(function(th) { return th.textContent.trim(); });
+        function pad(n) { return String(n).padStart(2,'0'); }
+        function esc(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function getDateFromRow(row) {
+          for (var i = 0; i < row.length; i++) {
+            var m = String(row[i]).match(/(\d{4})-(\d{2})-\d{2}/);
+            if (m) return { key: m[1]+'-'+m[2], label: parseInt(m[2])+'월' };
+          }
+          return { key: '미상', label: '미상' };
+        }
+        var instrIdx = Math.max(headers.indexOf('강사'), 0);
+        var timeIdx = Math.max(headers.indexOf('시간'), 0);
+        var personIdx = Math.max(headers.indexOf('인원'), 0);
+        var centerIdx = Math.max(headers.indexOf('센터'), 0);
+        var instrOrder = ['김보경','김현정','나혜리','구혜린'];
+        var instrMonthMap = {}, allMonths = {};
+        data.forEach(function(row) {
+          var instr = row[instrIdx] || '미배정';
+          var dateInfo = getDateFromRow(row);
+          if (!instrMonthMap[instr]) instrMonthMap[instr] = {};
+          if (!instrMonthMap[instr][dateInfo.key]) instrMonthMap[instr][dateInfo.key] = {label:dateInfo.label, 교육횟수:0, 총시간:0, 총인원:0};
+          instrMonthMap[instr][dateInfo.key].교육횟수++;
+          instrMonthMap[instr][dateInfo.key].총시간 += parseFloat(row[timeIdx]) || 0;
+          instrMonthMap[instr][dateInfo.key].총인원 += parseInt(row[personIdx]) || 0;
+          allMonths[dateInfo.key] = dateInfo.label;
+        });
+        var sortedMonthKeys = Object.keys(allMonths).sort();
+        var allInstrs = Object.keys(instrMonthMap);
+        var sortedInstrs = instrOrder.filter(function(n) { return allInstrs.indexOf(n) > -1; });
+        allInstrs.forEach(function(n) { if (sortedInstrs.indexOf(n) === -1) sortedInstrs.push(n); });
+        var instrSheetData = [];
+        var nameRow = [''];
+        sortedInstrs.forEach(function(instr) { nameRow.push(instr); nameRow.push(''); nameRow.push(''); nameRow.push(''); });
+        instrSheetData.push(nameRow);
+        var itemRow = ['월'];
+        sortedInstrs.forEach(function() { itemRow.push('총교육시간(H)'); itemRow.push('교육횟수'); itemRow.push('총교육인원(명)'); itemRow.push(''); });
+        instrSheetData.push(itemRow);
+        sortedMonthKeys.forEach(function(mk) {
+          var row = [allMonths[mk]];
+          sortedInstrs.forEach(function(instr) {
+            var d = instrMonthMap[instr] && instrMonthMap[instr][mk];
+            row.push(d ? d.총시간 : '-'); row.push(d ? d.교육횟수 : '-'); row.push(d ? d.총인원 : '-'); row.push('');
+          });
+          instrSheetData.push(row);
+        });
+        var totalRow = ['합계'];
+        sortedInstrs.forEach(function(instr) {
+          var t = {교육횟수:0, 총시간:0, 총인원:0};
+          sortedMonthKeys.forEach(function(mk) {
+            if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
+              t.교육횟수 += instrMonthMap[instr][mk].교육횟수;
+              t.총시간 += instrMonthMap[instr][mk].총시간;
+              t.총인원 += instrMonthMap[instr][mk].총인원;
+            }
+          });
+          totalRow.push(t.총시간); totalRow.push(t.교육횟수); totalRow.push(t.총인원); totalRow.push('');
+        });
+        instrSheetData.push(totalRow);
+        var centerMap = {};
+        data.forEach(function(row) {
+          var c = row[centerIdx] || '미배정';
+          if (!centerMap[c]) centerMap[c] = {교육횟수:0, 총시간:0, 총인원:0};
+          centerMap[c].교육횟수++;
+          centerMap[c].총시간 += parseFloat(row[timeIdx]) || 0;
+          centerMap[c].총인원 += parseInt(row[personIdx]) || 0;
+        });
+        var centerData = Object.entries(centerMap).map(function(e) { return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원]; });
+        var now = new Date();
+        var filename = 'MetaM_교육백업_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.xls';
+        function makeSheet(name, hdrs, rows2) {
+          var xml = '<Worksheet ss:Name="'+esc(name)+'"><Table>';
+          xml += '<Row>'+hdrs.map(function(h) { return '<Cell ss:StyleID="hd"><Data ss:Type="String">'+esc(String(h))+'</Data></Cell>'; }).join('')+'</Row>';
+          rows2.forEach(function(row) {
+            xml += '<Row>'+row.map(function(cell) {
+              if (cell===''||cell===undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
+              var num = parseFloat(cell);
+              return (!isNaN(num) && String(cell)!=='-') ? '<Cell><Data ss:Type="Number">'+num+'</Data></Cell>' : '<Cell><Data ss:Type="String">'+esc(String(cell))+'</Data></Cell>';
+            }).join('')+'</Row>';
+          });
+          xml += '</Table></Worksheet>';
+          return xml;
+        }
+        var wb = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>'
+          +'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+          +'<Styles><Style ss:ID="hd"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style></Styles>'
+          +makeSheet('교육기록', headers, data)
+          +makeSheet('강사별현황', instrSheetData[0], instrSheetData.slice(1))
+          +makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
+          +'</Workbook>';
+        var blob = new Blob(['﻿'+wb], {type:'application/vnd.ms-excel;charset=utf-8;'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href=url; a.download=filename; a.click();
+        URL.revokeObjectURL(url);
+        alert('백업 완료! '+filename+' / 총 '+data.length+'건 저장');
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitForReact);
+      } else {
+        waitForReact();
+      }
+    })();
+    </script>
+
+  </body>
+</html>
