@@ -40,7 +40,6 @@
       </div>
     </div>
 
-    <!-- 관리자 교육 현황 패널 -->
     <div id="mm-admin-edu-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
       <div style="background:#f8fafc; border-radius:16px; width:95vw; max-width:1100px; height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
         <div style="background:#1e293b; padding:18px 24px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
@@ -62,9 +61,7 @@
             <div id="admin-edu-pjt-list"></div>
           </div>
           <div id="admin-edu-content" style="flex:1; padding:24px; overflow-y:auto; background:#f8fafc;">
-            <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#94a3b8; font-size:15px;">
-              왼쪽에서 센터를 선택하세요
-            </div>
+            <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#94a3b8; font-size:15px;">왼쪽에서 센터를 선택하세요</div>
           </div>
         </div>
       </div>
@@ -194,7 +191,6 @@
       }).join('');
     }
 
-    // 관리자 교육 현황
     var ADMIN_SUPABASE_URL = 'https://wmuvdvqkopblhqdktrer.supabase.co';
     var ADMIN_SUPABASE_KEY = 'sb_publishable__y_4Lu06P5X3tiUObqdv2g_HCoqCrdU';
     var adminEduData = [];
@@ -204,9 +200,7 @@
       document.getElementById('mm-admin-edu-modal').style.display = 'flex';
       loadAdminEduData();
     }
-    function mmCloseAdminEdu() {
-      document.getElementById('mm-admin-edu-modal').style.display = 'none';
-    }
+    function mmCloseAdminEdu() { document.getElementById('mm-admin-edu-modal').style.display = 'none'; }
     function loadAdminEduData() {
       document.getElementById('admin-edu-pjt-list').innerHTML = '<p style="padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</p>';
       fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education?select=*&order=date.asc,pjt.asc,name.asc', {
@@ -254,6 +248,7 @@
         + '<div style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">'
         + '<table style="width:100%;border-collapse:collapse;font-size:14px;">'
         + '<thead><tr style="background:#f1f5f9;">'
+        + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">번호</th>'
         + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">일자</th>'
         + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">PJT</th>'
         + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">교육명</th>'
@@ -261,6 +256,7 @@
         + '</tr></thead><tbody>';
       filtered.forEach(function(row, i) {
         html += '<tr style="border-top:1px solid #f1f5f9;' + (i%2?'background:#fafafa;':'') + '">'
+          + '<td style="padding:11px 16px;color:#94a3b8;font-size:12px;">' + (i+1) + '</td>'
           + '<td style="padding:11px 16px;color:#475569;">' + (row.date||'-') + '</td>'
           + '<td style="padding:11px 16px;color:#475569;">' + (row.pjt||'-') + '</td>'
           + '<td style="padding:11px 16px;color:#475569;">' + (row.education_name||'-') + '</td>'
@@ -291,15 +287,15 @@
           }
           for (var i = startIdx; i < jsonData.length; i++) {
             var row = jsonData[i];
-            if (!row || row.length < 4) continue;
-            var date = String(row[0]||'').trim();
-            var pjt = String(row[1]||'').trim();
-            var education_name = String(row[2]||'').trim();
-            var name = String(row[3]||'').trim();
+            if (!row || row.length < 5) continue;
+            var date = String(row[1]||'').trim();
+            var pjt = String(row[2]||'').trim();
+            var education_name = String(row[3]||'').trim();
+            var name = String(row[4]||'').trim();
             if (date && pjt && name) rows.push({ date: date, pjt: pjt, education_name: education_name, name: name });
           }
           if (rows.length === 0) {
-            alert('업로드할 데이터가 없습니다.\n파일 형식: 일자 | PJT | 교육명 | 이름 순서로 확인해주세요.');
+            alert('업로드할 데이터가 없습니다.\n파일 형식: 번호 | 일자 | PJT | 교육명 | 이름 순서로 확인해주세요.');
             return;
           }
           if (confirm(rows.length + '건을 업로드합니다.\n기존 데이터에 추가됩니다. 진행할까요?')) {
@@ -537,8 +533,9 @@
           if ((t.includes('교육 입력') || t.includes('교육입력')) && !btn.hasAttribute('data-modal-watcher')) {
             btn.setAttribute('data-modal-watcher', 'true');
             btn.addEventListener('click', function() {
-              setTimeout(fixModalInputs, 500);
-              setTimeout(fixModalInputs, 1000);
+              setTimeout(fixModalInputs, 300);
+              setTimeout(fixModalInputs, 700);
+              setTimeout(fixModalInputs, 1200);
             });
           }
         });
