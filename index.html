@@ -8,6 +8,7 @@
     <script type="module" crossorigin src="assets/index-cdt6q6hz.js"></script>
     <link rel="stylesheet" crossorigin href="assets/index-m59glmsz.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       table tbody td { text-align: left; }
       table tbody td:nth-child(7),
@@ -198,12 +199,17 @@
     var adminEduData = [];
     var selectedPjt = null;
     var adminEduManageMode = false;
+    var adminEduChart = null;
 
     function mmOpenAdminEdu() {
       document.getElementById('mm-admin-edu-modal').style.display = 'flex';
       loadAdminEduData();
     }
-    function mmCloseAdminEdu() { document.getElementById('mm-admin-edu-modal').style.display = 'none'; }
+    function mmCloseAdminEdu() {
+      document.getElementById('mm-admin-edu-modal').style.display = 'none';
+      if (adminEduChart) { adminEduChart.destroy(); adminEduChart = null; }
+      selectedPjt = null;
+    }
     function loadAdminEduData() {
       document.getElementById('admin-edu-pjt-list').innerHTML = '<p style="padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</p>';
       fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education?select=*&order=date.asc,pjt.asc,name.asc', {
@@ -214,6 +220,7 @@
         adminEduData = Array.isArray(data) ? data : [];
         renderAdminEduPJTList();
         if (selectedPjt) showAdminEduCenter(selectedPjt);
+        else showAdminEduDashboard();
       })
       .catch(function() {
         document.getElementById('admin-edu-pjt-list').innerHTML = '<p style="padding:20px;color:#ef4444;font-size:13px;">데이터 로드 실패</p>';
@@ -242,12 +249,77 @@
         listEl.appendChild(item);
       });
     }
+
+    function showAdminEduDashboard() {
+      selectedPjt = null;
+      renderAdminEduPJTList();
+      var contentEl = document.getElementById('admin-edu-content');
+      if (adminEduData.length === 0) {
+        contentEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:15px;">엑셀을 업로드해주세요</div>';
+        return;
+      }
+      var pjtCounts = {};
+      adminEduData.forEach(function(r) { if (r.pjt) pjtCounts[r.pjt] = (pjtCounts[r.pjt] || 0) + 1; });
+      var sortedPjts = Object.keys(pjtCounts).sort(function(a, b) { return pjtCounts[b] - pjtCounts[a]; });
+      var top3 = sortedPjts.slice(0, 3);
+      var medals = ['🥇', '🥈', '🥉'];
+      var medalColors = ['#f59e0b', '#94a3b8', '#b45309'];
+      var top3Html = top3.map(function(pjt, i) {
+        return '<div style="flex:1;background:white;border-radius:12px;padding:20px 16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;" onclick="showAdminEduCenter(\'' + pjt.replace(/'/g, "\\'") + '\')">'
+          + '<div style="font-size:30px;margin-bottom:8px;">' + medals[i] + '</div>'
+          + '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:6px;">' + pjt + '</div>'
+          + '<div style="font-size:22px;font-weight:800;color:' + medalColors[i] + ';">' + pjtCounts[pjt] + '<span style="font-size:13px;font-weight:500;color:#64748b;">회</span></div>'
+          + '</div>';
+      }).join('');
+      var html = '<div style="margin-bottom:20px;">'
+        + '<h3 style="margin:0 0 14px;color:#1e293b;font-size:16px;font-weight:700;">🏆 TOP 3 교육 이수 센터</h3>'
+        + '<div style="display:flex;gap:12px;">' + top3Html + '</div>'
+        + '</div>'
+        + '<div style="background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">'
+        + '<h3 style="margin:0 0 16px;color:#1e293b;font-size:16px;font-weight:700;">📊 센터별 교육 이수 현황</h3>'
+        + '<canvas id="admin-edu-chart" style="max-height:400px;"></canvas>'
+        + '</div>';
+      contentEl.innerHTML = html;
+      if (adminEduChart) { adminEduChart.destroy(); adminEduChart = null; }
+      var ctx = document.getElementById('admin-edu-chart').getContext('2d');
+      adminEduChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sortedPjts,
+          datasets: [{
+            data: sortedPjts.map(function(p) { return pjtCounts[p]; }),
+            backgroundColor: sortedPjts.map(function(p, i) {
+              return i < 3 ? ['rgba(245,158,11,0.85)','rgba(148,163,184,0.85)','rgba(180,83,9,0.85)'][i] : 'rgba(59,130,246,0.75)';
+            }),
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+            y: { grid: { display: false } }
+          },
+          onClick: function(evt, elements) {
+            if (elements.length > 0) showAdminEduCenter(sortedPjts[elements[0].index]);
+          }
+        }
+      });
+    }
+
     function showAdminEduCenter(pjt) {
+      selectedPjt = pjt;
+      renderAdminEduPJTList();
       var filtered = adminEduData.filter(function(r) { return r.pjt === pjt; });
       var contentEl = document.getElementById('admin-edu-content');
-      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
+      var html = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">'
+        + '<button onclick="showAdminEduDashboard()" style="padding:6px 12px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;">← 전체 현황</button>'
         + '<h3 style="margin:0;color:#1e293b;font-size:17px;font-weight:700;">' + pjt
-        + ' <span style="font-size:13px;color:#64748b;font-weight:400;">총 ' + filtered.length + '회</span></h3></div>'
+        + ' <span style="font-size:13px;color:#64748b;font-weight:400;">총 ' + filtered.length + '회</span></h3>'
+        + '</div>'
         + '<div style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">'
         + '<table style="width:100%;border-collapse:collapse;font-size:14px;">'
         + '<thead><tr style="background:#f1f5f9;">'
@@ -271,6 +343,7 @@
       html += '</tbody></table></div>';
       contentEl.innerHTML = html;
     }
+
     function handleAdminEduUpload(event) {
       var file = event.target.files[0];
       if (!file) return;
