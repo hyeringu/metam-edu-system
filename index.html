@@ -11,6 +11,8 @@
       table tbody td { text-align: left; }
       table tbody td:nth-child(7),
       table tbody td:nth-child(8) { text-align: right; padding-right: 1.5rem; }
+      /* 모달 만족도 입력란 CSS로 숨기기 */
+      input[placeholder="0.0 ~ 5.0"] { display: none !important; }
     </style>
   </head>
   <body>
@@ -361,66 +363,24 @@
           if ((t.includes('교육 입력') || t.includes('교육입력')) && !btn.hasAttribute('data-modal-watcher')) {
             btn.setAttribute('data-modal-watcher', 'true');
             btn.addEventListener('click', function() {
-              setTimeout(fixModalInputs, 300);
-              setTimeout(fixModalInputs, 700);
-              setTimeout(fixModalInputs, 1200);
+              setTimeout(fixModalInputs, 500);
+              setTimeout(fixModalInputs, 1000);
             });
           }
         });
       }
 
       function fixModalInputs() {
-        var modal = null;
-        var allDivs = Array.from(document.querySelectorAll('div'));
-        for (var i = 0; i < allDivs.length; i++) {
-          var div = allDivs[i];
-          if (div.textContent.includes('새 교육 입력') && div.querySelector('select')) {
-            modal = div; break;
-          }
-        }
-        if (!modal) return;
-
-        modal.querySelectorAll('[data-react-hidden="true"]').forEach(function(el) {
-          if (el.textContent.includes('만족도')) return;
-          el.removeAttribute('data-react-hidden');
-          el.style.removeProperty('display');
+        var candidates = Array.from(document.querySelectorAll('div')).filter(function(div) {
+          return div.textContent.includes('새 교육 입력') && div.querySelector('select');
         });
+        if (!candidates.length) return;
+        var modal = candidates[candidates.length - 1];
 
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
           inp.setAttribute('data-free-input', 'true');
-        });
-
-        modal.querySelectorAll('input').forEach(function(inp) {
-          if (inp.getAttribute('data-free-input') === 'true') return;
-          var label = modal.querySelector('label[for="' + inp.id + '"]');
-          var labelText = label ? label.textContent : '';
-          var prevText = inp.previousElementSibling ? inp.previousElementSibling.textContent : '';
-          if (labelText.includes('인원') || labelText.includes('시간') || prevText.includes('인원') || prevText.includes('시간')) {
-            inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
-            inp.setAttribute('type', 'number');
-            inp.setAttribute('data-free-input', 'true');
-          }
-        });
-
-        modal.querySelectorAll('input').forEach(function(inp) {
-          if (inp.getAttribute('data-sat-hidden')) return;
-          if (inp.placeholder && inp.placeholder.includes('0.0')) {
-            var container = inp.parentElement;
-            while (container && container !== modal) {
-              if (container.parentElement === modal) break;
-              container = container.parentElement;
-            }
-            if (container && container !== modal) {
-              container.style.setProperty('visibility', 'hidden', 'important');
-              container.style.setProperty('height', '0', 'important');
-              container.style.setProperty('overflow', 'hidden', 'important');
-              container.style.setProperty('margin', '0', 'important');
-              container.style.setProperty('padding', '0', 'important');
-              inp.setAttribute('data-sat-hidden', 'true');
-            }
-          }
         });
 
         addCenterDirectInput(modal);
