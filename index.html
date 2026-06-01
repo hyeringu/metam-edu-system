@@ -11,7 +11,6 @@
       table tbody td { text-align: left; }
       table tbody td:nth-child(7),
       table tbody td:nth-child(8) { text-align: right; padding-right: 1.5rem; }
-      /* 모달 만족도 입력란 CSS로 숨기기 */
       input[placeholder="0.0 ~ 5.0"] { display: none !important; }
     </style>
   </head>
@@ -377,17 +376,13 @@
         if (!candidates.length) return;
         var modal = candidates[candidates.length - 1];
 
-        modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
-          if (inp.getAttribute('data-free-input') === 'true') return;
-          inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
-          inp.setAttribute('data-free-input', 'true');
-        });
-
-        addCenterDirectInput(modal);
+        replaceCenterWithTextInput(modal);
+        clearDefaultZeroValues(modal);
+        hideSatisfactionSection(modal);
       }
 
-      function addCenterDirectInput(modal) {
-        if (document.querySelector('[data-center-input]')) return;
+      function replaceCenterWithTextInput(modal) {
+        if (modal.querySelector('[data-center-text-input]')) return;
         var centerSel = null;
         modal.querySelectorAll('select').forEach(function(sel) {
           if (sel.id === 'my-instr-select') return;
@@ -401,39 +396,52 @@
         });
         if (!centerSel) return;
 
-        var customCenters = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
-        customCenters.forEach(function(val) {
+        centerSel.style.setProperty('display', 'none', 'important');
+
+        var textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.placeholder = '센터명 직접 입력 (예: IPI6)';
+        textInput.setAttribute('data-center-text-input', 'true');
+        textInput.style.cssText = 'width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;outline:none;box-sizing:border-box;';
+
+        textInput.addEventListener('input', function() {
+          var val = textInput.value.trim();
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
-          if (!exists) { var opt = document.createElement('option'); opt.value = val; opt.text = val; centerSel.appendChild(opt); }
+          if (!exists && val) {
+            var opt = document.createElement('option');
+            opt.value = val; opt.text = val;
+            centerSel.appendChild(opt);
+          }
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+          setter.call(centerSel, val);
+          centerSel.dispatchEvent(new Event('change', { bubbles: true }));
         });
 
-        var wrapper = document.createElement('div');
-        wrapper.setAttribute('data-center-input', 'true');
-        wrapper.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;';
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = '새 센터명 직접 입력';
-        input.style.cssText = 'flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;';
-        var addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.textContent = '추가';
-        addBtn.style.cssText = 'padding:8px 14px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;';
-        addBtn.addEventListener('click', function() {
-          var val = input.value.trim();
-          if (!val) return;
-          var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
-          if (!exists) { var opt = document.createElement('option'); opt.value = val; opt.text = val; centerSel.appendChild(opt); }
-          centerSel.value = val;
-          var saved = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
-          if (!saved.includes(val)) { saved.push(val); localStorage.setItem('metamEdu_customCenters', JSON.stringify(saved)); }
-          input.value = '';
-          addBtn.textContent = '✓ 추가됨';
-          setTimeout(function() { addBtn.textContent = '추가'; }, 1500);
+        centerSel.parentElement.insertBefore(textInput, centerSel);
+      }
+
+      function clearDefaultZeroValues(modal) {
+        modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
+          if (inp.getAttribute('data-zero-cleared')) return;
+          if (inp.value === '0' || inp.value === '0.0') {
+            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            setter.call(inp, '');
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+            inp.setAttribute('data-zero-cleared', 'true');
+          }
         });
-        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); } });
-        wrapper.appendChild(input);
-        wrapper.appendChild(addBtn);
-        centerSel.parentElement.appendChild(wrapper);
+      }
+
+      function hideSatisfactionSection(modal) {
+        if (modal.querySelector('[data-sat-section-hidden]')) return;
+        var inp = modal.querySelector('input[placeholder*="0.0"]');
+        if (!inp) return;
+        var container = inp.closest('div');
+        if (container && container !== modal) {
+          container.style.setProperty('display', 'none', 'important');
+          container.setAttribute('data-sat-section-hidden', 'true');
+        }
       }
 
       function downloadExcel() {
