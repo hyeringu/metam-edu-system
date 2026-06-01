@@ -271,13 +271,16 @@
           + '<div style="font-size:22px;font-weight:800;color:' + medalColors[i] + ';">' + pjtCounts[pjt] + '<span style="font-size:13px;font-weight:500;color:#64748b;">회</span></div>'
           + '</div>';
       }).join('');
+      var chartHeight = Math.max(sortedPjts.length * 55 + 60, 400);
       var html = '<div style="margin-bottom:20px;">'
         + '<h3 style="margin:0 0 14px;color:#1e293b;font-size:16px;font-weight:700;">🏆 TOP 3 교육 이수 센터</h3>'
         + '<div style="display:flex;gap:12px;">' + top3Html + '</div>'
         + '</div>'
         + '<div style="background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">'
         + '<h3 style="margin:0 0 16px;color:#1e293b;font-size:16px;font-weight:700;">📊 센터별 교육 이수 현황</h3>'
-        + '<canvas id="admin-edu-chart" style="max-height:400px;"></canvas>'
+        + '<div style="position:relative;height:' + chartHeight + 'px;">'
+        + '<canvas id="admin-edu-chart"></canvas>'
+        + '</div>'
         + '</div>';
       contentEl.innerHTML = html;
       if (adminEduChart) { adminEduChart.destroy(); adminEduChart = null; }
@@ -292,12 +295,14 @@
               return i < 3 ? ['rgba(245,158,11,0.85)','rgba(148,163,184,0.85)','rgba(180,83,9,0.85)'][i] : 'rgba(59,130,246,0.75)';
             }),
             borderRadius: 6,
-            borderSkipped: false
+            borderSkipped: false,
+            barThickness: 30
           }]
         },
         options: {
           indexAxis: 'y',
           responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
