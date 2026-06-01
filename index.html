@@ -7,6 +7,7 @@
     <title>MetaM 교육 관리 시스템</title>
     <script type="module" crossorigin src="/assets/index-cdt6q6hz.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-m59glmsz.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
       table tbody td { text-align: left; }
       table tbody td:nth-child(7),
@@ -20,6 +21,7 @@
     <div id="mm-bar" style="position:fixed; top:10px; right:14px; z-index:9000; display:flex; align-items:center; gap:6px; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
       <span id="mm-user" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#94a3b8; padding:5px 14px; border-radius:20px; font-size:13px;"></span>
       <button onclick="mmOpenPw()" title="비밀번호 변경" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">🔑</button>
+      <button onclick="mmOpenAdminEdu()" title="관리자 교육 현황" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">📊</button>
       <button onclick="mmOpenAudit()" title="감사 로그" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:14px; cursor:pointer;">📋</button>
       <button onclick="mmLogout()" style="background:rgba(30,41,59,0.95); border:1px solid #334155; color:#ef4444; padding:5px 12px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">로그아웃</button>
     </div>
@@ -34,6 +36,36 @@
         <div style="display:flex; gap:8px;">
           <button id="mm-pw-cancel" style="flex:1; padding:10px; background:#334155; color:#f1f5f9; border:none; border-radius:8px; font-size:14px; cursor:pointer;">취소</button>
           <button onclick="mmSavePw()" style="flex:2; padding:10px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">변경하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 관리자 교육 현황 패널 -->
+    <div id="mm-admin-edu-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9100; align-items:center; justify-content:center; font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+      <div style="background:#f8fafc; border-radius:16px; width:95vw; max-width:1100px; height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="background:#1e293b; padding:18px 24px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+          <h2 style="color:#f1f5f9; margin:0; font-size:18px;">📊 관리자 교육 현황</h2>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <label style="padding:8px 16px; background:#3b82f6; color:white; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">
+              📤 엑셀 업로드
+              <input type="file" accept=".xlsx,.xls" onchange="handleAdminEduUpload(event)" style="display:none;">
+            </label>
+            <button onclick="clearAdminEduData()" style="padding:8px 14px; background:#7f1d1d; color:#fca5a5; border:none; border-radius:8px; font-size:12px; cursor:pointer;">초기화</button>
+            <button onclick="mmCloseAdminEdu()" style="padding:8px 16px; background:#334155; color:#94a3b8; border:none; border-radius:8px; font-size:13px; cursor:pointer;">닫기</button>
+          </div>
+        </div>
+        <div style="display:flex; flex:1; overflow:hidden;">
+          <div style="width:220px; background:white; border-right:1px solid #e2e8f0; overflow-y:auto; flex-shrink:0;">
+            <div style="padding:14px 16px; background:#f1f5f9; border-bottom:1px solid #e2e8f0;">
+              <span style="font-size:12px; color:#64748b; font-weight:600;">센터 목록</span>
+            </div>
+            <div id="admin-edu-pjt-list"></div>
+          </div>
+          <div id="admin-edu-content" style="flex:1; padding:24px; overflow-y:auto; background:#f8fafc;">
+            <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#94a3b8; font-size:15px;">
+              왼쪽에서 센터를 선택하세요
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -160,6 +192,149 @@
         const c = Object.entries(colors).find(([k]) => log.action.includes(k))?.[1] || '#94a3b8';
         return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '"><td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + log.ts + '</td><td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + log.id + '</td><td style="padding:8px; color:#e2e8f0; font-weight:500;">' + log.name + '</td><td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + log.action + '</span></td><td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td></tr>';
       }).join('');
+    }
+
+    // 관리자 교육 현황
+    var ADMIN_SUPABASE_URL = 'https://wmuvdvqkopblhqdktrer.supabase.co';
+    var ADMIN_SUPABASE_KEY = 'sb_publishable__y_4Lu06P5X3tiUObqdv2g_HCoqCrdU';
+    var adminEduData = [];
+    var selectedPjt = null;
+
+    function mmOpenAdminEdu() {
+      document.getElementById('mm-admin-edu-modal').style.display = 'flex';
+      loadAdminEduData();
+    }
+    function mmCloseAdminEdu() {
+      document.getElementById('mm-admin-edu-modal').style.display = 'none';
+    }
+    function loadAdminEduData() {
+      document.getElementById('admin-edu-pjt-list').innerHTML = '<p style="padding:20px;color:#94a3b8;font-size:13px;">불러오는 중...</p>';
+      fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education?select=*&order=date.asc,pjt.asc,name.asc', {
+        headers: { 'apikey': ADMIN_SUPABASE_KEY, 'Authorization': 'Bearer ' + ADMIN_SUPABASE_KEY }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        adminEduData = Array.isArray(data) ? data : [];
+        renderAdminEduPJTList();
+        if (selectedPjt) showAdminEduCenter(selectedPjt);
+      })
+      .catch(function() {
+        document.getElementById('admin-edu-pjt-list').innerHTML = '<p style="padding:20px;color:#ef4444;font-size:13px;">데이터 로드 실패</p>';
+      });
+    }
+    function renderAdminEduPJTList() {
+      var listEl = document.getElementById('admin-edu-pjt-list');
+      var pjts = [];
+      adminEduData.forEach(function(r) { if (r.pjt && pjts.indexOf(r.pjt) === -1) pjts.push(r.pjt); });
+      pjts.sort();
+      if (pjts.length === 0) {
+        listEl.innerHTML = '<p style="padding:20px;color:#94a3b8;font-size:13px;line-height:1.6;">데이터가 없습니다.<br>엑셀을 업로드해주세요.</p>';
+        return;
+      }
+      listEl.innerHTML = '';
+      pjts.forEach(function(pjt) {
+        var count = adminEduData.filter(function(r) { return r.pjt === pjt; }).length;
+        var item = document.createElement('div');
+        var isSelected = pjt === selectedPjt;
+        item.style.cssText = 'padding:12px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;' + (isSelected ? 'background:#eff6ff;border-left:3px solid #3b82f6;' : 'border-left:3px solid transparent;');
+        item.innerHTML = '<span style="font-weight:' + (isSelected?'600':'500') + ';color:' + (isSelected?'#2563eb':'#1e293b') + ';font-size:14px;">' + pjt + '</span>'
+          + '<span style="background:#475569;color:#f1f5f9;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;">' + count + '회</span>';
+        item.onmouseover = function() { if (pjt !== selectedPjt) item.style.background = '#f8fafc'; };
+        item.onmouseout = function() { if (pjt !== selectedPjt) item.style.background = ''; };
+        item.onclick = function() { selectedPjt = pjt; renderAdminEduPJTList(); showAdminEduCenter(pjt); };
+        listEl.appendChild(item);
+      });
+    }
+    function showAdminEduCenter(pjt) {
+      var filtered = adminEduData.filter(function(r) { return r.pjt === pjt; });
+      var contentEl = document.getElementById('admin-edu-content');
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
+        + '<h3 style="margin:0;color:#1e293b;font-size:17px;font-weight:700;">' + pjt
+        + ' <span style="font-size:13px;color:#64748b;font-weight:400;">총 ' + filtered.length + '회</span></h3></div>'
+        + '<div style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:14px;">'
+        + '<thead><tr style="background:#f1f5f9;">'
+        + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">일자</th>'
+        + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">PJT</th>'
+        + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">교육명</th>'
+        + '<th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;font-size:12px;">이름</th>'
+        + '</tr></thead><tbody>';
+      filtered.forEach(function(row, i) {
+        html += '<tr style="border-top:1px solid #f1f5f9;' + (i%2?'background:#fafafa;':'') + '">'
+          + '<td style="padding:11px 16px;color:#475569;">' + (row.date||'-') + '</td>'
+          + '<td style="padding:11px 16px;color:#475569;">' + (row.pjt||'-') + '</td>'
+          + '<td style="padding:11px 16px;color:#475569;">' + (row.education_name||'-') + '</td>'
+          + '<td style="padding:11px 16px;color:#1e293b;font-weight:500;">' + (row.name||'-') + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+      contentEl.innerHTML = html;
+    }
+    function handleAdminEduUpload(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var wb = XLSX.read(e.target.result, { type: 'binary' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          var rows = [];
+          var startIdx = 0;
+          if (jsonData.length > 0) {
+            var firstRow = jsonData[0];
+            var isHeader = firstRow.some(function(cell) {
+              var s = String(cell||'').toLowerCase();
+              return s.includes('일자') || s.includes('pjt') || s.includes('이름') || s.includes('date');
+            });
+            if (isHeader) startIdx = 1;
+          }
+          for (var i = startIdx; i < jsonData.length; i++) {
+            var row = jsonData[i];
+            if (!row || row.length < 4) continue;
+            var date = String(row[0]||'').trim();
+            var pjt = String(row[1]||'').trim();
+            var education_name = String(row[2]||'').trim();
+            var name = String(row[3]||'').trim();
+            if (date && pjt && name) rows.push({ date: date, pjt: pjt, education_name: education_name, name: name });
+          }
+          if (rows.length === 0) {
+            alert('업로드할 데이터가 없습니다.\n파일 형식: 일자 | PJT | 교육명 | 이름 순서로 확인해주세요.');
+            return;
+          }
+          if (confirm(rows.length + '건을 업로드합니다.\n기존 데이터에 추가됩니다. 진행할까요?')) {
+            uploadAdminEduRows(rows);
+          }
+        } catch(err) { alert('파일 읽기 오류: ' + err.message); }
+      };
+      reader.readAsBinaryString(file);
+      event.target.value = '';
+    }
+    function uploadAdminEduRows(rows) {
+      fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education', {
+        method: 'POST',
+        headers: { 'apikey': ADMIN_SUPABASE_KEY, 'Authorization': 'Bearer ' + ADMIN_SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(rows)
+      })
+      .then(function(res) {
+        if (res.ok) { alert('✅ ' + rows.length + '건 업로드 완료!'); loadAdminEduData(); }
+        else { res.text().then(function(t) { alert('업로드 실패: ' + t); }); }
+      })
+      .catch(function(err) { alert('오류: ' + err.message); });
+    }
+    function clearAdminEduData() {
+      if (mmUser && mmUser.id !== '2024100098') { alert('초기화는 관리자만 가능합니다.'); return; }
+      if (!confirm('모든 관리자 교육 데이터를 삭제합니다. 계속할까요?')) return;
+      fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education?id=gte.0', {
+        method: 'DELETE',
+        headers: { 'apikey': ADMIN_SUPABASE_KEY, 'Authorization': 'Bearer ' + ADMIN_SUPABASE_KEY }
+      })
+      .then(function(res) {
+        if (res.ok) {
+          alert('초기화 완료'); selectedPjt = null; loadAdminEduData();
+          document.getElementById('admin-edu-content').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:15px;">왼쪽에서 센터를 선택하세요</div>';
+        } else { alert('초기화 실패'); }
+      });
     }
     function mmClearLogs() {
       if (mmUser.id !== '2024100098') { alert('감사로그 초기화는 관리자만 가능합니다.'); return; }
@@ -375,7 +550,6 @@
         });
         if (!candidates.length) return;
         var modal = candidates[candidates.length - 1];
-
         replaceCenterWithTextInput(modal);
         clearDefaultZeroValues(modal);
         hideSatisfactionSection(modal);
@@ -395,28 +569,20 @@
           }
         });
         if (!centerSel) return;
-
         centerSel.style.setProperty('display', 'none', 'important');
-
         var textInput = document.createElement('input');
         textInput.type = 'text';
         textInput.placeholder = '센터명 직접 입력 (예: IPI6)';
         textInput.setAttribute('data-center-text-input', 'true');
         textInput.style.cssText = 'width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;outline:none;box-sizing:border-box;';
-
         textInput.addEventListener('input', function() {
           var val = textInput.value.trim();
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
-          if (!exists && val) {
-            var opt = document.createElement('option');
-            opt.value = val; opt.text = val;
-            centerSel.appendChild(opt);
-          }
+          if (!exists && val) { var opt = document.createElement('option'); opt.value = val; opt.text = val; centerSel.appendChild(opt); }
           var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
           setter.call(centerSel, val);
           centerSel.dispatchEvent(new Event('change', { bubbles: true }));
         });
-
         centerSel.parentElement.insertBefore(textInput, centerSel);
       }
 
