@@ -8,7 +8,6 @@
     <script type="module" crossorigin src="/assets/index-cdt6q6hz.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-m59glmsz.css">
     <style>
-      /* 인원/시간 숫자 컬럼 정렬 */
       table tbody td { text-align: left; }
       table tbody td:nth-child(7),
       table tbody td:nth-child(8) { text-align: right; padding-right: 1.5rem; }
@@ -181,7 +180,7 @@
         var debounce = null;
         var observer = new MutationObserver(function() {
           clearTimeout(debounce);
-          debounce = setTimeout(applyCustomizations, 150);
+          debounce = setTimeout(applyCustomizations, 300);
         });
         observer.observe(document.body, { childList: true, subtree: true });
         setTimeout(applyCustomizations, 800);
@@ -193,7 +192,6 @@
         hideReactFilterBtns();
         ensureToolbar();
         watchModalOpen();
-        fixModalInputs();
         fixInstructorPage();
         fixCenterPage();
         if (currentFilter) filterRows(currentFilter);
@@ -382,19 +380,18 @@
         }
         if (!modal) return;
 
-        // 교육유형 버튼 컨테이너만 복원 (만족도 제외)
         modal.querySelectorAll('[data-react-hidden="true"]').forEach(function(el) {
           if (el.textContent.includes('만족도')) return;
           el.removeAttribute('data-react-hidden');
           el.style.removeProperty('display');
         });
 
-        // 인원/시간 자유 숫자 입력
         modal.querySelectorAll('input[type="number"]').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           inp.removeAttribute('min'); inp.removeAttribute('max'); inp.removeAttribute('step');
           inp.setAttribute('data-free-input', 'true');
         });
+
         modal.querySelectorAll('input').forEach(function(inp) {
           if (inp.getAttribute('data-free-input') === 'true') return;
           var label = modal.querySelector('label[for="' + inp.id + '"]');
@@ -407,8 +404,8 @@
           }
         });
 
-        // 만족도 입력란 숨기기
         modal.querySelectorAll('input').forEach(function(inp) {
+          if (inp.getAttribute('data-sat-hidden')) return;
           if (inp.placeholder && inp.placeholder.includes('0.0')) {
             var container = inp.parentElement;
             while (container && container !== modal) {
@@ -416,12 +413,16 @@
               container = container.parentElement;
             }
             if (container && container !== modal) {
-              container.style.setProperty('display', 'none', 'important');
+              container.style.setProperty('visibility', 'hidden', 'important');
+              container.style.setProperty('height', '0', 'important');
+              container.style.setProperty('overflow', 'hidden', 'important');
+              container.style.setProperty('margin', '0', 'important');
+              container.style.setProperty('padding', '0', 'important');
+              inp.setAttribute('data-sat-hidden', 'true');
             }
           }
         });
 
-        // 센터 직접 입력 기능
         addCenterDirectInput(modal);
       }
 
@@ -443,11 +444,7 @@
         var customCenters = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
         customCenters.forEach(function(val) {
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
-          if (!exists) {
-            var opt = document.createElement('option');
-            opt.value = val; opt.text = val;
-            centerSel.appendChild(opt);
-          }
+          if (!exists) { var opt = document.createElement('option'); opt.value = val; opt.text = val; centerSel.appendChild(opt); }
         });
 
         var wrapper = document.createElement('div');
@@ -465,11 +462,7 @@
           var val = input.value.trim();
           if (!val) return;
           var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
-          if (!exists) {
-            var opt = document.createElement('option');
-            opt.value = val; opt.text = val;
-            centerSel.appendChild(opt);
-          }
+          if (!exists) { var opt = document.createElement('option'); opt.value = val; opt.text = val; centerSel.appendChild(opt); }
           centerSel.value = val;
           var saved = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
           if (!saved.includes(val)) { saved.push(val); localStorage.setItem('metamEdu_customCenters', JSON.stringify(saved)); }
