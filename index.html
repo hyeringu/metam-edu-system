@@ -7,6 +7,12 @@
     <title>MetaM 교육 관리 시스템</title>
     <script type="module" crossorigin src="/assets/index-cdt6q6hz.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-m59glmsz.css">
+    <style>
+      /* 인원/시간 숫자 컬럼 정렬 */
+      table tbody td { text-align: left; }
+      table tbody td:nth-child(7),
+      table tbody td:nth-child(8) { text-align: right; padding-right: 1.5rem; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
@@ -521,6 +527,88 @@
             }
           }
         });
+
+        // 센터 직접 입력 기능 추가
+        addCenterDirectInput(modal);
+      }
+
+      function addCenterDirectInput(modal) {
+        if (modal.querySelector('[data-center-input]')) return;
+
+        // 센터 select 찾기 (옵션 5개 이상)
+        var centerSel = null;
+        modal.querySelectorAll('select').forEach(function(sel) {
+          if (sel.id === 'my-instr-select') return;
+          var opts = Array.from(sel.options);
+          var texts = opts.map(function(o) { return o.text; });
+          if (opts.length >= 5 && !texts.some(function(t) { return t === '온라인' || t === '오프라인'; })
+              && !texts.some(function(t) { return ['김보경','김현정','나혜리','구혜린'].indexOf(t) > -1; })) {
+            centerSel = sel;
+          }
+        });
+        if (!centerSel) return;
+
+        // localStorage에 저장된 커스텀 센터 불러오기
+        var customCenters = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
+        customCenters.forEach(function(val) {
+          var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
+          if (!exists) {
+            var opt = document.createElement('option');
+            opt.value = val; opt.text = val;
+            centerSel.appendChild(opt);
+          }
+        });
+
+        // 직접 입력 UI 생성
+        var wrapper = document.createElement('div');
+        wrapper.setAttribute('data-center-input', 'true');
+        wrapper.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;';
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = '새 센터명 직접 입력';
+        input.style.cssText = 'flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;';
+
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.textContent = '추가';
+        addBtn.style.cssText = 'padding:8px 14px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;';
+
+        addBtn.addEventListener('click', function() {
+          var val = input.value.trim();
+          if (!val) return;
+
+          // 드롭다운에 추가
+          var exists = Array.from(centerSel.options).some(function(o) { return o.value === val; });
+          if (!exists) {
+            var opt = document.createElement('option');
+            opt.value = val; opt.text = val;
+            centerSel.appendChild(opt);
+          }
+
+          // 선택
+          centerSel.value = val;
+
+          // localStorage 저장
+          var saved = JSON.parse(localStorage.getItem('metamEdu_customCenters') || '[]');
+          if (!saved.includes(val)) {
+            saved.push(val);
+            localStorage.setItem('metamEdu_customCenters', JSON.stringify(saved));
+          }
+
+          input.value = '';
+          addBtn.textContent = '✓ 추가됨';
+          setTimeout(function() { addBtn.textContent = '추가'; }, 1500);
+        });
+
+        // Enter 키로도 추가 가능
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
+        });
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(addBtn);
+        centerSel.parentElement.appendChild(wrapper);
       }
 
       // ⑥ 엑셀 다운로드
@@ -580,80 +668,4 @@
         instrSheetData.push(itemRow);
 
         sortedMonthKeys.forEach(function(mk) {
-          var row = [allMonths[mk]];
-          sortedInstrs.forEach(function(instr) {
-            var d = instrMonthMap[instr] && instrMonthMap[instr][mk];
-            row.push(d ? d.총시간 : '-'); row.push(d ? d.교육횟수 : '-'); row.push(d ? d.총인원 : '-'); row.push('');
-          });
-          instrSheetData.push(row);
-        });
-
-        var totalRow = ['합계'];
-        sortedInstrs.forEach(function(instr) {
-          var t = {교육횟수:0, 총시간:0, 총인원:0};
-          sortedMonthKeys.forEach(function(mk) {
-            if (instrMonthMap[instr] && instrMonthMap[instr][mk]) {
-              t.교육횟수 += instrMonthMap[instr][mk].교육횟수;
-              t.총시간   += instrMonthMap[instr][mk].총시간;
-              t.총인원   += instrMonthMap[instr][mk].총인원;
-            }
-          });
-          totalRow.push(t.총시간); totalRow.push(t.교육횟수); totalRow.push(t.총인원); totalRow.push('');
-        });
-        instrSheetData.push(totalRow);
-
-        var centerMap = {};
-        data.forEach(function(row) {
-          var c = row[centerIdx] || '미배정';
-          if (!centerMap[c]) centerMap[c] = {교육횟수:0, 총시간:0, 총인원:0};
-          centerMap[c].교육횟수++;
-          centerMap[c].총시간 += parseFloat(row[timeIdx]) || 0;
-          centerMap[c].총인원 += parseInt(row[personIdx]) || 0;
-        });
-        var centerData = Object.entries(centerMap).map(function(e) {
-          return [e[0], e[1].교육횟수, e[1].총시간, e[1].총인원];
-        });
-
-        var now = new Date();
-        var filename = 'MetaM_교육백업_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.xls';
-
-        function makeSheet(name, hdrs, rows2) {
-          var xml = '<Worksheet ss:Name="'+esc(name)+'"><Table>';
-          xml += '<Row>'+hdrs.map(function(h) { return '<Cell ss:StyleID="hd"><Data ss:Type="String">'+esc(String(h))+'</Data></Cell>'; }).join('')+'</Row>';
-          rows2.forEach(function(row) {
-            xml += '<Row>'+row.map(function(cell) {
-              if (cell===''||cell===undefined) return '<Cell><Data ss:Type="String"></Data></Cell>';
-              var num = parseFloat(cell);
-              return (!isNaN(num) && String(cell)!=='-') ? '<Cell><Data ss:Type="Number">'+num+'</Data></Cell>' : '<Cell><Data ss:Type="String">'+esc(String(cell))+'</Data></Cell>';
-            }).join('')+'</Row>';
-          });
-          xml += '</Table></Worksheet>';
-          return xml;
-        }
-
-        var wb = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>'
-          +'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
-          +'<Styles><Style ss:ID="hd"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style></Styles>'
-          +makeSheet('교육기록', headers, data)
-          +makeSheet('강사별현황', instrSheetData[0], instrSheetData.slice(1))
-          +makeSheet('센터별현황', ['센터','교육횟수','총시간(H)','총인원(명)'], centerData)
-          +'</Workbook>';
-
-        var blob = new Blob(['﻿'+wb], {type:'application/vnd.ms-excel;charset=utf-8;'});
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href=url; a.download=filename; a.click();
-        URL.revokeObjectURL(url);
-        alert('백업 완료! '+filename+' / 총 '+data.length+'건 저장');
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', waitForReact);
-      } else {
-        waitForReact();
-      }
-    })();
-    </script>
-
-  </body>
-</html>
+          var row = [allMonths[mk]
