@@ -110,18 +110,29 @@
     <script>
     const PFX = 'metamEdu_';
     const AUDIT_PW = '7256!';
+    const AUDIT_SUPABASE_URL = 'https://wmuvdvqkopblhqdktrer.supabase.co';
+    const AUDIT_SUPABASE_KEY = 'sb_publishable__y_4Lu06P5X3tiUObqdv2g_HCoqCrdU';
+
     let mmUser = null;
     try { mmUser = JSON.parse(localStorage.getItem(PFX + 'currentUser') || 'null'); } catch(e) {}
     if (!mmUser) { location.replace('./login.html'); } else { document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')'; }
+
     function mmLog(action, detail) {
       if (!mmUser) return;
-      try {
-        const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
-        logs.unshift({ ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), id: mmUser.id, name: mmUser.name, action, detail: detail || '' });
-        if (logs.length > 500) logs.splice(500);
-        localStorage.setItem(PFX + 'auditLogs', JSON.stringify(logs));
-      } catch(e) {}
+      const logData = {
+        ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        user_id: mmUser.id,
+        user_name: mmUser.name,
+        action: action,
+        detail: detail || ''
+      };
+      fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs', {
+        method: 'POST',
+        headers: { 'apikey': AUDIT_SUPABASE_KEY, 'Authorization': 'Bearer ' + AUDIT_SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(logData)
+      }).catch(function() {});
     }
+
     const _origAlert = window.alert;
     window.alert = function(msg) {
       if (mmUser && typeof msg === 'string') {
@@ -181,17 +192,32 @@
       }
     }
     document.getElementById('mm-audit-pw').addEventListener('keydown', e => { if (e.key === 'Enter') mmCheckAuditPw(); });
+
     function mmRenderLogs() {
-      const logs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
       const tbody = document.getElementById('mm-audit-tbody');
-      document.getElementById('mm-audit-count').textContent = '총 ' + logs.length + '개의 로그';
-      if (logs.length === 0) { tbody.innerHTML = ''; document.getElementById('mm-audit-empty').style.display = 'block'; return; }
-      document.getElementById('mm-audit-empty').style.display = 'none';
-      const colors = { '로그인':'#22c55e','자동 로그인':'#10b981','로그아웃':'#f59e0b','비밀번호 변경':'#3b82f6','교육 추가':'#10b981','교육 수정':'#f59e0b','교육 삭제':'#ef4444','감사로그 열기 성공':'#06b6d4','감사로그 열기 시도':'#a78bfa','감사로그 비밀번호 오류':'#dc2626','로그 초기화':'#dc2626' };
-      tbody.innerHTML = logs.map((log, i) => {
-        const c = Object.entries(colors).find(([k]) => log.action.includes(k))?.[1] || '#94a3b8';
-        return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '"><td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + log.ts + '</td><td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + log.id + '</td><td style="padding:8px; color:#e2e8f0; font-weight:500;">' + log.name + '</td><td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + log.action + '</span></td><td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td></tr>';
-      }).join('');
+      document.getElementById('mm-audit-count').textContent = '불러오는 중...';
+      fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs?select=*&order=created_at.desc&limit=500', {
+        headers: { 'apikey': AUDIT_SUPABASE_KEY, 'Authorization': 'Bearer ' + AUDIT_SUPABASE_KEY }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(logs) {
+        if (!Array.isArray(logs)) logs = [];
+        document.getElementById('mm-audit-count').textContent = '총 ' + logs.length + '개의 로그';
+        if (logs.length === 0) { tbody.innerHTML = ''; document.getElementById('mm-audit-empty').style.display = 'block'; return; }
+        document.getElementById('mm-audit-empty').style.display = 'none';
+        const colors = { '로그인':'#22c55e','자동 로그인':'#10b981','로그아웃':'#f59e0b','비밀번호 변경':'#3b82f6','교육 추가':'#10b981','교육 수정':'#f59e0b','교육 삭제':'#ef4444','감사로그 열기 성공':'#06b6d4','감사로그 열기 시도':'#a78bfa','감사로그 비밀번호 오류':'#dc2626','로그 초기화':'#dc2626' };
+        tbody.innerHTML = logs.map((log, i) => {
+          const c = Object.entries(colors).find(([k]) => log.action.includes(k))?.[1] || '#94a3b8';
+          return '<tr style="border-bottom:1px solid #1e293b;' + (i%2?'background:rgba(255,255,255,0.02)':'') + '">'
+            + '<td style="padding:8px; color:#64748b; white-space:nowrap; font-size:12px;">' + (log.ts||'-') + '</td>'
+            + '<td style="padding:8px; color:#cbd5e1; font-family:monospace; font-size:13px;">' + (log.user_id||'-') + '</td>'
+            + '<td style="padding:8px; color:#e2e8f0; font-weight:500;">' + (log.user_name||'-') + '</td>'
+            + '<td style="padding:8px;"><span style="background:' + c + '22; color:' + c + '; padding:2px 8px; border-radius:4px; font-size:12px;">' + (log.action||'-') + '</span></td>'
+            + '<td style="padding:8px; color:#64748b; font-size:12px; max-width:200px; word-break:break-all;">' + (log.detail||'-') + '</td>'
+            + '</tr>';
+        }).join('');
+      })
+      .catch(function() { document.getElementById('mm-audit-count').textContent = '로드 실패'; });
     }
 
     var ADMIN_SUPABASE_URL = 'https://wmuvdvqkopblhqdktrer.supabase.co';
@@ -249,7 +275,6 @@
         listEl.appendChild(item);
       });
     }
-
     function showAdminEduDashboard() {
       selectedPjt = null;
       renderAdminEduPJTList();
@@ -314,7 +339,6 @@
         }
       });
     }
-
     function showAdminEduCenter(pjt) {
       selectedPjt = pjt;
       renderAdminEduPJTList();
@@ -348,7 +372,6 @@
       html += '</tbody></table></div>';
       contentEl.innerHTML = html;
     }
-
     function handleAdminEduUpload(event) {
       var file = event.target.files[0];
       if (!file) return;
@@ -437,11 +460,16 @@
     }
     function mmClearLogs() {
       if (mmUser.id !== '2024100098') { alert('감사로그 초기화는 관리자만 가능합니다.'); return; }
-      if (confirm('감사로그를 초기화하시겠습니까?')) {
-        const cnt = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]').length;
-        mmLog('로그 초기화', '초기화 전 ' + cnt + '개');
-        localStorage.setItem(PFX + 'auditLogs', '[]');
-        mmRenderLogs();
+      if (confirm('모든 감사로그를 삭제합니다. 계속할까요?')) {
+        fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs?id=gte.0', {
+          method: 'DELETE',
+          headers: { 'apikey': AUDIT_SUPABASE_KEY, 'Authorization': 'Bearer ' + AUDIT_SUPABASE_KEY }
+        })
+        .then(function(res) {
+          if (res.ok) { alert('초기화 완료'); mmRenderLogs(); }
+          else { alert('초기화 실패'); }
+        })
+        .catch(function() { alert('초기화 오류'); });
       }
     }
     </script>
