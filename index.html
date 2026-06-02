@@ -115,21 +115,35 @@
 
     let mmUser = null;
     try { mmUser = JSON.parse(localStorage.getItem(PFX + 'currentUser') || 'null'); } catch(e) {}
-    if (!mmUser) { location.replace('./login.html'); } else { document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')'; }
 
-    function mmLog(action, detail) {
-      if (!mmUser) return;
-      const logData = {
-        ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        user_id: mmUser.id,
-        user_name: mmUser.name,
-        action: action,
-        detail: detail || ''
-      };
+    if (!mmUser) {
+      location.replace('./login.html');
+    } else {
+      document.getElementById('mm-user').textContent = mmUser.name + ' (' + mmUser.id + ')';
+      migrateLegacyLogs();
+    }
+
+    function migrateLegacyLogs() {
+      const migratedKey = PFX + 'logsMigrated_' + mmUser.id;
+      if (localStorage.getItem(migratedKey)) return;
+      const oldLogs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
+      if (oldLogs.length === 0) { localStorage.setItem(migratedKey, '1'); return; }
+      const rows = oldLogs.map(function(log) {
+        return { ts: log.ts || '', user_id: log.id || mmUser.id, user_name: log.name || mmUser.name, action: log.action || '', detail: log.detail || '' };
+      });
       fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs', {
         method: 'POST',
         headers: { 'apikey': AUDIT_SUPABASE_KEY, 'Authorization': 'Bearer ' + AUDIT_SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(logData)
+        body: JSON.stringify(rows)
+      }).then(function(res) { if (res.ok) localStorage.setItem(migratedKey, '1'); }).catch(function() {});
+    }
+
+    function mmLog(action, detail) {
+      if (!mmUser) return;
+      fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs', {
+        method: 'POST',
+        headers: { 'apikey': AUDIT_SUPABASE_KEY, 'Authorization': 'Bearer ' + AUDIT_SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ ts: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), user_id: mmUser.id, user_name: mmUser.name, action: action, detail: detail || '' })
       }).catch(function() {});
     }
 
@@ -319,15 +333,11 @@
             backgroundColor: sortedPjts.map(function(p, i) {
               return i < 3 ? ['rgba(245,158,11,0.85)','rgba(148,163,184,0.85)','rgba(180,83,9,0.85)'][i] : 'rgba(59,130,246,0.75)';
             }),
-            borderRadius: 6,
-            borderSkipped: false,
-            barThickness: 30
+            borderRadius: 6, borderSkipped: false, barThickness: 30
           }]
         },
         options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
@@ -438,22 +448,21 @@
       if (checked.length === 0) { alert('삭제할 항목을 선택해주세요.'); return; }
       if (!confirm(checked.length + '개 항목을 삭제합니다. 계속할까요?')) return;
       var ids = Array.from(checked).map(function(cb) { return cb.getAttribute('data-id'); });
-      var promises = ids.map(function(id) {
+      Promise.all(ids.map(function(id) {
         return fetch(ADMIN_SUPABASE_URL + '/rest/v1/admin_education?id=eq.' + id, {
           method: 'DELETE',
           headers: { 'apikey': ADMIN_SUPABASE_KEY, 'Authorization': 'Bearer ' + ADMIN_SUPABASE_KEY }
         });
-      });
-      Promise.all(promises)
-        .then(function() {
-          alert('✅ ' + ids.length + '개 삭제 완료!');
-          adminEduManageMode = false;
-          document.getElementById('admin-edu-manage-btn').style.display = '';
-          document.getElementById('admin-edu-delete-btn').style.display = 'none';
-          document.getElementById('admin-edu-cancel-btn').style.display = 'none';
-          loadAdminEduData();
-        })
-        .catch(function(err) { alert('삭제 오류: ' + err.message); });
+      }))
+      .then(function() {
+        alert('✅ ' + ids.length + '개 삭제 완료!');
+        adminEduManageMode = false;
+        document.getElementById('admin-edu-manage-btn').style.display = '';
+        document.getElementById('admin-edu-delete-btn').style.display = 'none';
+        document.getElementById('admin-edu-cancel-btn').style.display = 'none';
+        loadAdminEduData();
+      })
+      .catch(function(err) { alert('삭제 오류: ' + err.message); });
     }
     function toggleAllAdminEduChk(el) {
       document.querySelectorAll('.admin-edu-chk').forEach(function(cb) { cb.checked = el.checked; });
