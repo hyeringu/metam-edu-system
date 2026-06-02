@@ -123,13 +123,32 @@
       migrateLegacyLogs();
     }
 
+    function parseKoreanTs(ts) {
+      if (!ts) return null;
+      try {
+        const m = ts.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+        if (!m) return null;
+        let h = parseInt(m[5]);
+        if (m[4] === '오후' && h !== 12) h += 12;
+        if (m[4] === '오전' && h === 12) h = 0;
+        return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), h, parseInt(m[6]), parseInt(m[7])).toISOString();
+      } catch(e) { return null; }
+    }
+
     function migrateLegacyLogs() {
       const migratedKey = PFX + 'logsMigrated_' + mmUser.id;
       if (localStorage.getItem(migratedKey)) return;
       const oldLogs = JSON.parse(localStorage.getItem(PFX + 'auditLogs') || '[]');
       if (oldLogs.length === 0) { localStorage.setItem(migratedKey, '1'); return; }
       const rows = oldLogs.map(function(log) {
-        return { ts: log.ts || '', user_id: log.id || mmUser.id, user_name: log.name || mmUser.name, action: log.action || '', detail: log.detail || '' };
+        return {
+          ts: log.ts || '',
+          log_time: parseKoreanTs(log.ts),
+          user_id: log.id || mmUser.id,
+          user_name: log.name || mmUser.name,
+          action: log.action || '',
+          detail: log.detail || ''
+        };
       });
       fetch(AUDIT_SUPABASE_URL + '/rest/v1/audit_logs', {
         method: 'POST',
